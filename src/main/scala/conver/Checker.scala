@@ -18,8 +18,8 @@ object Checker {
     addEdges(opLst, g, soCmp, "so")
     addEdges(opLst, g, visCmp, "vis")
 
-    println(g.nodes.length)
-    println(g.edges.length)
+//    println(g.nodes.length)
+//    println(g.edges.length)
     println(g.edges mkString "; ")
 
     opLst

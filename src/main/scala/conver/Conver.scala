@@ -29,16 +29,15 @@ object Conver extends App {
 
   val sTime = System.nanoTime
   for (t <- testers)
-    futures += Future { t.run }
+    futures += Future { t.run(sTime) }
 
   for (f <- futures)
     opLst ++= Await.result(f, Duration.Inf)
-  val eTime = System.nanoTime
+  val duration = System.nanoTime - sTime
 
   println("\nResults:")
   opLst.foreach { x => println(x.toLongString) }
-  println("end.")
   
   Checker.checkExecution(opLst)
-  Drawer.drawExecution(opLst)
+  Drawer.drawExecution(numClients, opLst, duration)
 }
