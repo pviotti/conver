@@ -6,5 +6,5 @@ bin
 .cache-*
 .worksheet
 .settings
-_scraps.scala
+_scraps.*
 

@@ -3,12 +3,6 @@ package conver
 import scala.collection.mutable.ListBuffer
 import scalax.collection.mutable.Graph
 import scalax.collection.edge.Implicits._
-import edu.mit.csail.sdg.alloy4compiler.translator.A4Options
-import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig
-import edu.mit.csail.sdg.alloy4compiler.ast.Attr
-import edu.mit.csail.sdg.alloy4compiler.parser.CompModule.Open
-import edu.mit.csail.sdg.alloy4.A4Reporter
-import edu.mit.csail.sdg.alloy4compiler.parser.CompUtil
 import scala.collection.mutable.HashSet
 import conver.clients.Client
 import scalax.collection.GraphEdge.DiEdge
