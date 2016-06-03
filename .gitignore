@@ -1,1 +1,10 @@
 target/
+bin
+*.png
+.project
+.classpath
+.cache-*
+.worksheet
+.settings
+_scraps.scala
+
