@@ -39,6 +39,9 @@ object Conver extends App {
   println("\nResults:")
   opLst.foreach(x => println(x.toLongString))
 
-  Checker.checkExecution(opLst)
-  Drawer.drawExecution(numClients, opLst, duration)
+  try {
+    Checker.checkExecution(opLst)
+  } finally {
+    Drawer.drawExecution(numClients, opLst, duration)
+  }
 }

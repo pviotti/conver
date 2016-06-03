@@ -24,7 +24,7 @@ object DummyRegClient extends Client {
   // create concurrent HashSet (Java 8)
   private val concVals = ConcurrentHashMap.newKeySet[Int]
 
-  override def init() =
+  override def init =
     hashMap.put(Client.KEY, Client.INIT_VALUE)
 
   override def read(key: String) = {
@@ -56,5 +56,5 @@ object DummyRegClient extends Client {
   override def delete(key: String) =
     hashMap.remove(key)
 
-  override def terminate() = Unit
+  override def terminate = Unit
 }

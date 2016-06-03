@@ -15,17 +15,36 @@ object Checker {
 
     val (isLinearizable, readAnomLst) = checkLinearizability(gAr, opLst)
     if (isLinearizable) {
-      println(s"Linearizability..............................${Console.GREEN}[OK]${Console.RESET}")
+      println(s"Linearizability.............................." + printBoolean(isLinearizable))
       println("Total order: " + gAr.nodes.toSeq.sortBy(x => -x.outDegree))
       //println(gAr.edges mkString " ")
     } else {
-      println(s"Linearizability..............................${Console.RED}[KO]${Console.RESET}")
+      println(s"Linearizability.............................." + printBoolean(isLinearizable))
+
+      val gSo: Graph[Operation, DiEdge] = Graph()
+      addEdges(opLst, gSo, soCmp)
+      val isPRAM = gAr.intersect(gSo) == gSo
+      println(s"PRAM........................................." + printBoolean(isPRAM))
+
+      val gRb: Graph[Operation, DiEdge] = Graph()
+      addEdges(opLst, gRb, rbCmp)
+
+      val gVis: Graph[Operation, DiEdge] = Graph()
+      addEdges(opLst, gVis, visCmp)
+
+      val gSoVis = gSo.union(gVis)
+      val isCausal = gAr.intersect(gSoVis) == gSoVis
+      println(s"Causal......................................." + printBoolean(isCausal))
+
       println("Anomalies: " + readAnomLst)
       println("Tentative total order: " + gAr.nodes.toSeq.sortBy(x => -x.outDegree))
-
-      //      val gSo: Graph[Operation, DiEdge] = Graph()
     }
     opLst
+  }
+
+  def printBoolean(b: Boolean): String = b match {
+    case true => Console.GREEN + "[OK]" + Console.RESET
+    case false => Console.RED + "[KO]" + Console.RESET
   }
 
   def checkLinearizability(
@@ -49,7 +68,7 @@ object Checker {
 
         // find matched write
         if (op.arg != Client.INIT_VALUE) { // read of initial value has no matching write
-          val matchedW = gAr.nodes.find { x => visCmp(x.value, op) }.get
+          val matchedW = gAr.nodes.find(x => visCmp(x.value, op)).get
 
           // matched write inherits read's rb edges
           for (e <- gAr.get(op).incoming)
@@ -116,7 +135,7 @@ object Checker {
 
   def addNodeToGraph(g: Graph[Operation, DiEdge], op: Operation): Unit = {
     if (!g.nodes.contains(op)) {
-      g.add(op)
+      g += op
       for (n <- g.nodes.toSeq if (linRbCmp(n.value, op)))
         g += DiEdge(n.value, op)
     }
