@@ -18,9 +18,8 @@ class Tester(
     val readFraction: Int,
     val client: Client) {
 
-  private val seed: Long = System.currentTimeMillis
+  private val seed: Long = System.nanoTime
   private val rnd: Random = new Random(seed)
-  private val key = "key"
 
   private var numOp: Int = 0
   private var opLst: ListBuffer[Operation] = new ListBuffer[Operation]
@@ -31,24 +30,24 @@ class Tester(
   }
 
   def run(t0: Long): ListBuffer[Operation] = {
-    numOp = Math.floor(rnd.nextGaussian() * sigmaNumOp + meanNumOp).asInstanceOf[Int]
+    numOp = Math.floor(rnd.nextGaussian * sigmaNumOp + meanNumOp).asInstanceOf[Int]
 
     for (i <- 1 to numOp) {
       // TODO better with exponential interarrival times?
       Thread.sleep(rnd.nextInt(maxInterOpInterval))
 
       if (rnd.nextInt(readFraction) == 0) {
-        val sTime = System.nanoTime() - t0
-        val arg = client.read(key)
-        val eTime = System.nanoTime() - t0
+        val sTime = System.nanoTime - t0
+        val arg = client.read(Client.KEY)
+        val eTime = System.nanoTime - t0
         val op = new Operation(id, READ, sTime, eTime, arg, new HashSet[String])
         opLst += op
         print(s"$op ")
       } else {
         val arg = MonotonicOracle.getNextMonotonicInt
-        val sTime = System.nanoTime() - t0
-        client.write(key, arg)
-        val eTime = System.nanoTime() - t0
+        val sTime = System.nanoTime - t0
+        client.write(Client.KEY, arg)
+        val eTime = System.nanoTime - t0
         val op = new Operation(id, WRITE, sTime, eTime, arg, new HashSet[String])
         opLst += op
         print(s"$op ")
@@ -60,7 +59,7 @@ class Tester(
 }
 
 object MonotonicOracle {
-  private var atomicInt: AtomicInteger = new AtomicInteger(0)
+  private var atomicInt = new AtomicInteger(Client.INIT_VALUE + 1)
 
   def getNextMonotonicInt: Int =
     atomicInt.getAndIncrement // returns the previous value
