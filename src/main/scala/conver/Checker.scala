@@ -9,25 +9,27 @@ import scalax.collection.GraphEdge.DiEdge
 
 object Checker {
 
+  val ANOMALY_REGULAR = "reg"
+  val ANOMALY_STALEREAD = "stale"
+
   def checkExecution(opLst: ListBuffer[Operation]): ListBuffer[Operation] = {
 
     val gAr: Graph[Operation, DiEdge] = Graph()
 
     val (isLinearizable, readAnomLst) = checkLinearizability(gAr, opLst)
+    println(s"Linearizability.............................." + printBoolean(isLinearizable))
     if (isLinearizable) {
-      println(s"Linearizability.............................." + printBoolean(isLinearizable))
       println("Total order: " + gAr.nodes.toSeq.sortBy(x => -x.outDegree))
       //println(gAr.edges mkString " ")
     } else {
-      println(s"Linearizability.............................." + printBoolean(isLinearizable))
-
-      val gSo: Graph[Operation, DiEdge] = Graph()
-      addEdges(opLst, gSo, soCmp)
-      val isPRAM = gAr.intersect(gSo) == gSo
-      println(s"PRAM........................................." + printBoolean(isPRAM))
+      val isRegular = readAnomLst.find(op => op.notes.contains(ANOMALY_STALEREAD)).isEmpty
+      println(s"Regular......................................" + printBoolean(isRegular))
 
       val gRb: Graph[Operation, DiEdge] = Graph()
       addEdges(opLst, gRb, rbCmp)
+
+      val gSo: Graph[Operation, DiEdge] = Graph()
+      addEdges(opLst, gSo, soCmp)
 
       val gVis: Graph[Operation, DiEdge] = Graph()
       addEdges(opLst, gVis, visCmp)
@@ -35,6 +37,11 @@ object Checker {
       val gSoVis = gSo.union(gVis)
       val isCausal = gAr.intersect(gSoVis) == gSoVis
       println(s"Causal......................................." + printBoolean(isCausal))
+
+      val isPRAM = gAr.intersect(gSo) == gSo
+      println(s"PRAM........................................." + printBoolean(isPRAM))
+
+      if (isRegular) { assert(isCausal); assert(isPRAM) }
 
       println("Anomalies: " + readAnomLst)
       println("Tentative total order: " + gAr.nodes.toSeq.sortBy(x => -x.outDegree))
@@ -47,6 +54,11 @@ object Checker {
     case false => Console.RED + "[KO]" + Console.RESET
   }
 
+  /**
+   * Linearizability checker
+   * Implements an algorithm similar to that of
+   * Lu et al., SOSP '15
+   */
   def checkLinearizability(
     gAr: Graph[Operation, DiEdge],
     opLst: ListBuffer[Operation]) = {
@@ -81,7 +93,7 @@ object Checker {
            * This allows to add rb edges and then spot possible
            * cycles due to anomalies that otherwise would go unnoticed. */
           if (op.eTimeX < matchedW.eTimeX) {
-            //println(s"Refining ${matchedW.value} to $op")
+            println(s"Refining ${matchedW.value} to $op")
             gAr.get(matchedW).value.eTimeX = op.eTimeX
           }
         }
@@ -89,13 +101,16 @@ object Checker {
         // remove read from graph
         gAr -= op
 
-        if (foundAnomaly(gAr))
+        val (isLinear, anomalyType) = checkGraph(gAr)
+        if (!isLinear) {
+          op.notes += anomalyType
           readAnomLst += op
+        }
       }
     }
 
     // add arbitrary edges between writes that
-    // have not yet been related by interleaving reads
+    // have not been ordered by interleaving reads
     for (n1 <- gAr.nodes; n2 <- gAr.nodes) {
       if (n1.findOutgoingTo(n2) == None &&
         n2.findOutgoingTo(n1) == None)
@@ -141,7 +156,7 @@ object Checker {
     }
   }
 
-  def foundAnomaly(g: Graph[Operation, DiEdge]): Boolean = {
+  def checkGraph(g: Graph[Operation, DiEdge]): (Boolean, String) = {
 
     if (!g.isAcyclic) {
 
@@ -151,23 +166,30 @@ object Checker {
        * If this fails (because operations are concurrent),
        * remove a random edge. */
 
-      for (c <- g.findCycle) {
-        println(s"Cycle found: $c")
+      val c = g.findCycle.getOrElse(throw new IllegalStateException("No cycles found"))
+      println(s"Cycle found: $c")
 
-        val rbEdges = c.edges.filter(e => linRbCmp(e.target.value, e.source.value))
-        val remEdge = if (rbEdges.isEmpty) {
-          print(s"No vertex ordered by rb found in cycle, removing random edge. ")
-          c.edges.toVector(0)
-        } else
-          rbEdges.toVector(0)
+      /* If the cycle contains writes whose end times
+       * have been refined, then the anomaly rules out
+       * linearizability but not regular semantics. */
+      val isStaleRead = c.nodes.find(n =>
+        (n.value.eTime > n.value.eTimeX) ||
+          (n.value.eTime > n.value.eTimeX)).isEmpty
+      val anomalyType = if (isStaleRead) ANOMALY_STALEREAD else ANOMALY_REGULAR
 
-        println(s"Removing edge from cycle: $remEdge")
-        g -= remEdge
-      }
+      val rbEdges = c.edges.filter(e => linRbCmp(e.target.value, e.source.value))
+      val remEdge = if (rbEdges.isEmpty) {
+        print(s"No vertex ordered by rb found in cycle, removing random edge. ")
+        c.edges.head
+      } else
+        rbEdges.head
 
-      true
+      println(s"Removing edge from cycle: $remEdge")
+      g -= remEdge
+
+      (false, anomalyType)
     } else
-      false
+      (true, "")
   }
 
   /**

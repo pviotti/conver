@@ -24,4 +24,11 @@ class CheckerTest extends FunSuite {
     Drawer.drawExecution(2, ops, 8)
     Checker.checkExecution(ops)
   }
+
+  test("Causal violation")(pending)
+  test("RYW violation")(pending)
+  test("MW violation")(pending)
+  test("MR violation")(pending)
+  test("WFR violation")(pending)
+
 }
