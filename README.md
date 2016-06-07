@@ -10,8 +10,8 @@ defined as first-order logic predicates.
 
 The approach implemented in Conver has been described in [this PaPoC 2016 paper][papoc].  
 
-**NOTE**: This is a work-in-progress Scala rewrite of the [original](https://github.com/pviotti/conver) 
-Erlang implementation. It features a new linearizability checker, and improved
+**NOTE: This is a work-in-progress Scala rewrite of the [original](https://github.com/pviotti/conver) 
+Erlang implementation. It features a new linearizability checker, and improved consistency checks.**
 
 
 ## Features
