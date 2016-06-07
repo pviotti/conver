@@ -6,6 +6,8 @@ import scala.collection.mutable.HashSet
 
 class CheckerTest extends FunSuite {
 
+  val tstDir = "test-exec/"
+
   test("New-old inversion") {
     val ops = new ListBuffer[Operation]
     ops += new Operation('a', WRITE, 1, 5, 1)
@@ -13,7 +15,7 @@ class CheckerTest extends FunSuite {
     ops += new Operation('b', READ, 4, 8, 2)
     ops += new Operation('c', READ, 9, 12, 1)
     Checker.checkExecution(ops)
-    Drawer.drawExecution(3, ops, 16, "execs/new-old_inv.png")
+    Drawer.drawExecution(3, ops, 16, tstDir + "/new-old_inv.png")
   }
 
   test("Crossed concurrent read-writes") {
@@ -23,7 +25,7 @@ class CheckerTest extends FunSuite {
     ops += new Operation('a', READ, 4, 6, 1)
     ops += new Operation('b', READ, 4, 6, 2)
     Checker.checkExecution(ops)
-    Drawer.drawExecution(2, ops, 8, "execs/crossed_conc.png")
+    Drawer.drawExecution(2, ops, 8, tstDir + "/crossed_conc.png")
   }
 
   test("Inter-session monotonicity (MR/MW/WFR) violation") {
@@ -33,7 +35,7 @@ class CheckerTest extends FunSuite {
     ops += new Operation('b', READ, 9, 12, 2)
     ops += new Operation('b', READ, 13, 15, 1)
     Checker.checkExecution(ops)
-    Drawer.drawExecution(2, ops, 16, "execs/intersess_mono.png")
+    Drawer.drawExecution(2, ops, 16, tstDir + "/intersess_mono.png")
   }
 
   test("RYW violation") {
@@ -42,7 +44,7 @@ class CheckerTest extends FunSuite {
     ops += new Operation('a', WRITE, 5, 7, 2)
     ops += new Operation('a', READ, 9, 12, 1)
     Checker.checkExecution(ops)
-    Drawer.drawExecution(1, ops, 13, "execs/ryw.png")
+    Drawer.drawExecution(1, ops, 13, tstDir + "/ryw.png")
   }
 
   test("Inter-session monotonicity (MR/MW/WFR) violation #2") {
@@ -52,7 +54,7 @@ class CheckerTest extends FunSuite {
     ops += new Operation('b', READ, 3, 6, 2)
     ops += new Operation('b', READ, 8, 11, 1)
     try { Checker.checkExecution(ops) }
-    finally { Drawer.drawExecution(2, ops, 13, "execs/tocheck.png") }
+    finally { Drawer.drawExecution(2, ops, 13, tstDir + "/tocheck.png") }
   }
 
   test("WFR violation") {
@@ -63,7 +65,7 @@ class CheckerTest extends FunSuite {
     ops += new Operation('a', READ, 8, 11, 2)
     ops += new Operation('a', READ, 12, 14, 1)
     Checker.checkExecution(ops)
-    Drawer.drawExecution(3, ops, 15, "execs/wfr.png")
+    Drawer.drawExecution(3, ops, 15, tstDir + "/wfr.png")
   }
 
   test("Linearizable")(pending)
