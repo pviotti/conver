@@ -20,7 +20,7 @@ class Operation(
   override def toString = proc + ":" + opType + ":" + arg
 
   def toLongString: String =
-    "[" + proc + "," + opType + "," + arg + "," + sTime + "," + eTime +
+    "[" + proc + "," + opType + "," + arg + "," + sTime + "," + eTime + "," +
       (if (anomalies.isEmpty) "-" else anomalies.mkString(" ")) + "]"
 
   def toLabelString: String =

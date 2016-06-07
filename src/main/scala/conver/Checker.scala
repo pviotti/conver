@@ -64,7 +64,7 @@ object Checker {
        * for reads and writes belonging to the same session.
        * Includes: Read-Your-Writes */
     var isIntraSessMonotonic = true
-    for ((w0, r0) <- eVis; (w1, r0) <- eSo)
+    for ((w0, r0) <- eVis; (w1, r01) <- eSo if (r0 == r01))
       if ((w1.value is WRITE) && eRb.contains((w0, w1)))
         isIntraSessMonotonic = false
 
