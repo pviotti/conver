@@ -40,7 +40,7 @@ class Tester(
         val sTime = System.nanoTime - t0
         val arg = client.read(Client.KEY)
         val eTime = System.nanoTime - t0
-        val op = new Operation(id, READ, sTime, eTime, arg, new HashSet[String])
+        val op = new Operation(id, READ, sTime, eTime, arg)
         opLst += op
         print(s"$op ")
       } else {
@@ -48,7 +48,7 @@ class Tester(
         val sTime = System.nanoTime - t0
         client.write(Client.KEY, arg)
         val eTime = System.nanoTime - t0
-        val op = new Operation(id, WRITE, sTime, eTime, arg, new HashSet[String])
+        val op = new Operation(id, WRITE, sTime, eTime, arg)
         opLst += op
         print(s"$op ")
       }

@@ -5,47 +5,87 @@ import scalax.collection.mutable.Graph
 import scalax.collection.edge.Implicits._
 import scala.collection.mutable.HashSet
 import conver.clients.Client
-import scalax.collection.GraphEdge.DiEdge
+import scalax.collection.edge.LkDiEdge
 
 object Checker {
 
   val ANOMALY_REGULAR = "reg"
   val ANOMALY_STALEREAD = "stale"
 
+  val AR = "AR"; val RB = "RB"; val CONC = "CONC"; val VIS = "VIS"; val SO = "SO"
+
   def checkExecution(opLst: ListBuffer[Operation]): ListBuffer[Operation] = {
 
-    val gAr: Graph[Operation, DiEdge] = Graph()
+    val g: Graph[Operation, LkDiEdge] = Graph()
 
-    val (isLinearizable, readAnomLst) = checkLinearizability(gAr, opLst)
-    println(s"Linearizability.............................." + printBoolean(isLinearizable))
-    if (isLinearizable) {
-      println("Total order: " + gAr.nodes.toSeq.sortBy(x => -x.outDegree))
-      //println(gAr.edges mkString " ")
-    } else {
-      val isRegular = readAnomLst.find(op => op.notes.contains(ANOMALY_STALEREAD)).isEmpty
-      println(s"Regular......................................" + printBoolean(isRegular))
+    val (isLinearizable, readAnomLst) = checkLinearizability(g, opLst)
+    print("Total order: ")
+    g.nodes.toSeq.sortBy(x => -x.outDegree).foreach(x => print(x + " ")); println
+    println("Linearizability.............................." + printBoolean(isLinearizable))
 
-      val gRb: Graph[Operation, DiEdge] = Graph()
-      addEdges(opLst, gRb, rbCmp)
+    val isRegular = readAnomLst.find(op => op.anomalies.contains(ANOMALY_STALEREAD)).isEmpty
+    println("Regular......................................" + printBoolean(isRegular))
 
-      val gSo: Graph[Operation, DiEdge] = Graph()
-      addEdges(opLst, gSo, soCmp)
+    //TODO include initial ghost write
 
-      val gVis: Graph[Operation, DiEdge] = Graph()
-      addEdges(opLst, gVis, visCmp)
+    addEdges(opLst, g, rbCmp, RB)
+    addEdges(opLst, g, soCmp, SO)
+    addEdges(opLst, g, visCmp, VIS)
+    //addEdges(opLst, g, areConcurrent, CONC)
 
-      val gSoVis = gSo.union(gVis)
-      val isCausal = gAr.intersect(gSoVis) == gSoVis
-      println(s"Causal......................................." + printBoolean(isCausal))
+    // ending "map" to cast labeled edges to normal ones before doing set operations
+    val eRb = g.edges.filter(e => e.label.equals(RB)).map(e => e.source -> e.target)
+    val eVis = g.edges.filter(e => e.label.equals(VIS)).map(e => e.source -> e.target)
+    val eSo = g.edges.filter(e => e.label.equals(SO)).map(e => e.source -> e.target)
+    //val eAr = g.edges.filter(e => e.label.equals(AR)).map(e => e.source -> e.target)
+    //val eSoRW = g.edges.filter(e => e.label.equals(SO) &&
+    //  (e.source.value is READ) && (e.target.value is WRITE)).map(e => e.source -> e.target)
+    //val eSoWW = g.edges.filter(e => e.label.equals(SO) &&
+    //  (e.source.value is WRITE) && (e.target.value is WRITE)).map(e => e.source -> e.target)
+    //val eSoRR = g.edges.filter(e => e.label.equals(SO) &&
+    //  (e.source.value is READ) && (e.target.value is READ)).map(e => e.source -> e.target)
+    //val eVisSoRR = eSoRR.union(eVis)
+    //val eVisSoRW = eSoRW.union(eVis)
+    //val eVisSoWW = eSoWW.union(eVis)
+    //val eVisSo = eSo.union(eVis)
 
-      val isPRAM = gAr.intersect(gSo) == gSo
-      println(s"PRAM........................................." + printBoolean(isPRAM))
+    /* Inter-session (returns-before) monotonicity:
+       * maintain returns-before write order across sessions
+       * (i.e. reads and writes belong to different sessions).
+       * Includes: Monotonic Writes, Monotonic Reads, Writes Follow Reads */
+    var isInterSessMonotonic = true
+    for ((w1, r1) <- eVis; (w2, r2) <- eVis)
+      if (eRb.contains((w1, w2)) && (eSo.contains(r2, r1))
+        && (w1.value.proc != r2.value.proc))
+        isInterSessMonotonic = false
 
-      if (isRegular) { assert(isCausal); assert(isPRAM) }
+    /* Intra-session (returns-before) monotonicity:
+       * maintain returns-before write order
+       * for reads and writes belonging to the same session.
+       * Includes: Read-Your-Writes */
+    var isIntraSessMonotonic = true
+    for ((w0, r0) <- eVis; (w1, r0) <- eSo)
+      if ((w1.value is WRITE) && eRb.contains((w0, w1)))
+        isIntraSessMonotonic = false
 
-      println("Anomalies: " + readAnomLst)
-      println("Tentative total order: " + gAr.nodes.toSeq.sortBy(x => -x.outDegree))
+    //val isMonotonicWrites = eAr.intersect(eSoWW) == eSoWW
+    //val isMonotonicReads = eAr.intersect(eVisSoRR) == eVisSoRR
+    //val isWritesFollowReads = eAr.intersect(eVisSoRW) == eVisSoRW
+    //val isCausal = eAr.intersect(eVisSo) == eVisSo && isPRAM
+    //val isPRAM = eAr.intersect(eSo) == eSo
+
+    val isCausal = isInterSessMonotonic && isIntraSessMonotonic
+
+    println("Causal......................................." + printBoolean(isCausal))
+    println("Inter-Session Monotonic (MR, MW, WFR)........" + printBoolean(isInterSessMonotonic))
+    println("Intra-Session Monotonic (RYW)................" + printBoolean(isIntraSessMonotonic))
+
+    if (isLinearizable) assert(isRegular)
+    if (isRegular) {
+      assert(isCausal); assert(isInterSessMonotonic); assert(isIntraSessMonotonic)
     }
+
+    print("Anomalies: "); readAnomLst.foreach(x => print(x + " ")); println
     opLst
   }
 
@@ -60,7 +100,7 @@ object Checker {
    * Lu et al., SOSP '15
    */
   def checkLinearizability(
-    gAr: Graph[Operation, DiEdge],
+    g: Graph[Operation, LkDiEdge],
     opLst: ListBuffer[Operation]) = {
 
     val readAnomLst = new ListBuffer[Operation]
@@ -69,41 +109,42 @@ object Checker {
     for (op <- sortedOps) {
 
       // add node and link to its rb-preceding
-      addNodeToGraph(gAr, op)
+      addNodeToGraph(g, op)
 
       if (op is READ) {
 
         // add to graph all writes concurrent to this read
         for (op1 <- sortedOps)
           if ((op1 is WRITE) && areLinConcurrent(op, op1))
-            addNodeToGraph(gAr, op1)
+            addNodeToGraph(g, op1)
 
-        // find matched write
         if (op.arg != Client.INIT_VALUE) { // read of initial value has no matching write
-          val matchedW = gAr.nodes.find(x => visCmp(x.value, op)).get
+          // find matched write
+          val matchedW = g.nodes.find(x => visCmp(x.value, op)).get
 
           // matched write inherits read's rb edges
-          for (e <- gAr.get(op).incoming)
+          for (e <- g.get(op).incoming)
             if (e.source.value != matchedW.value) {
               //println(s"Inheriting ${e.source.value} -> ${matchedW.value}")
-              gAr += DiEdge(e.source.value, matchedW.value)
+              g += LkDiEdge(e.source.value, matchedW.value)(AR)
             }
 
           /* Refine response time of write matching the read.
-           * This allows to add rb edges and then spot possible
-           * cycles due to anomalies that otherwise would go unnoticed. */
-          if (op.eTimeX < matchedW.eTimeX) {
+           * This allows to add further returns-before edges
+           * and then spot possible cycles due to anomalies
+           * that otherwise would go unnoticed (e.g. new-old inversion). */
+          if (op.eTimeX < matchedW.value.eTimeX) {
             println(s"Refining ${matchedW.value} to $op")
-            gAr.get(matchedW).value.eTimeX = op.eTimeX
+            matchedW.value.eTimeX = op.eTimeX
           }
         }
 
         // remove read from graph
-        gAr -= op
+        g -= op
 
-        val (isLinear, anomalyType) = checkGraph(gAr)
+        val (isLinear, anomalyType) = checkGraph(g, op)
         if (!isLinear) {
-          op.notes += anomalyType
+          op.anomalies += anomalyType
           readAnomLst += op
         }
       }
@@ -111,36 +152,55 @@ object Checker {
 
     // add arbitrary edges between writes that
     // have not been ordered by interleaving reads
-    for (n1 <- gAr.nodes; n2 <- gAr.nodes) {
+    for (n1 <- g.nodes; n2 <- g.nodes) {
       if (n1.findOutgoingTo(n2) == None &&
         n2.findOutgoingTo(n1) == None)
         if (n1.value.sTime < n2.value.sTime) {
           //println(s"Adding ${n1.value} ~> ${n2.value}")
-          gAr += DiEdge(n1.value, n2.value)
+          g += LkDiEdge(n1.value, n2.value)(AR)
         }
     }
 
-    // insert reads back into ar, right after corresponding writes
+    /* insert reads back into ar:
+     *  - right after corresponding writes in case they don't present anomalies, or
+     *  - according to returns-before order in case they do */
     opLst.filter(op => op is READ).foreach { read =>
 
-      if (read.arg == Client.INIT_VALUE) {
-        for (n <- gAr.nodes.toSeq)
-          gAr += DiEdge(read, n.value)
+      if (read.anomalies.isEmpty) {
+
+        if (read.arg == Client.INIT_VALUE) {
+          for (n <- g.nodes.toSeq)
+            g += LkDiEdge(read, n.value)(AR)
+        } else {
+          var matched = false
+          for (n <- g.nodes.toSeq.sortBy(x => -x.outDegree))
+            if (!matched) {
+              g += LkDiEdge(n.value, read)(AR)
+              if (visCmp(n.value, read))
+                matched = true
+            } else {
+              g += LkDiEdge(read, n.value)(AR)
+            }
+        }
+
       } else {
-        var matched = false
-        for (n <- gAr.nodes.toSeq.sortBy(x => -x.outDegree))
-          if (!matched) {
-            gAr += DiEdge(n.value, read)
-            if (visCmp(n.value, read))
-              matched = true
-          } else {
-            gAr += DiEdge(read, n.value)
-          }
+
+        for (n <- g.nodes.toSeq.sortBy(x => -x.outDegree)) {
+          if (rbCmp(n.value, read))
+            g += LkDiEdge(n.value, read)(AR)
+          else if (rbCmp(read, n.value))
+            g += LkDiEdge(read, n.value)(AR)
+          else if (areConcurrent(read, n.value))
+            // process id breaks ties for concurrent operations
+            if (read.proc > n.value.proc) g += LkDiEdge(read, n.value)(AR)
+            else g += LkDiEdge(n.value, read)(AR)
+        }
+
       }
     }
 
-    assert(gAr.nodes.length == opLst.size)
-    assert(gAr.edges.length == (opLst.size * (opLst.size - 1) / 2))
+    assert(g.nodes.length == opLst.size)
+    assert(g.edges.length == (opLst.size * (opLst.size - 1) / 2))
 
     if (!readAnomLst.isEmpty)
       (false, readAnomLst)
@@ -148,15 +208,15 @@ object Checker {
       (true, readAnomLst)
   }
 
-  def addNodeToGraph(g: Graph[Operation, DiEdge], op: Operation): Unit = {
+  def addNodeToGraph(g: Graph[Operation, LkDiEdge], op: Operation): Unit = {
     if (!g.nodes.contains(op)) {
       g += op
       for (n <- g.nodes.toSeq if (linRbCmp(n.value, op)))
-        g += DiEdge(n.value, op)
+        g += LkDiEdge(n.value, op)(AR)
     }
   }
 
-  def checkGraph(g: Graph[Operation, DiEdge]): (Boolean, String) = {
+  def checkGraph(g: Graph[Operation, LkDiEdge], currentRead: Operation): (Boolean, String) = {
 
     if (!g.isAcyclic) {
 
@@ -169,12 +229,10 @@ object Checker {
       val c = g.findCycle.getOrElse(throw new IllegalStateException("No cycles found"))
       println(s"Cycle found: $c")
 
-      /* If the cycle contains writes whose end times
-       * have been refined, then the anomaly rules out
+      /* If the cycle contains writes that are concurrent
+       * with the read just checked, then the anomaly rules out
        * linearizability but not regular semantics. */
-      val isStaleRead = c.nodes.find(n =>
-        (n.value.eTime > n.value.eTimeX) ||
-          (n.value.eTime > n.value.eTimeX)).isEmpty
+      val isStaleRead = !c.nodes.exists(x => areConcurrent(x.value, currentRead))
       val anomalyType = if (isStaleRead) ANOMALY_STALEREAD else ANOMALY_REGULAR
 
       val rbEdges = c.edges.filter(e => linRbCmp(e.target.value, e.source.value))
@@ -206,6 +264,9 @@ object Checker {
   def rbCmp(op1: Operation, op2: Operation) =
     op1.eTime < op2.sTime
 
+  def areConcurrent(op1: Operation, op2: Operation) =
+    !rbCmp(op1, op2) && !rbCmp(op2, op1)
+
   def soCmp(op1: Operation, op2: Operation) =
     op1.proc == op2.proc && op1.eTime < op2.sTime
 
@@ -214,9 +275,10 @@ object Checker {
 
   def addEdges(
     opLst: ListBuffer[Operation],
-    g: Graph[Operation, DiEdge],
-    cmpFun: (Operation, Operation) => Boolean) =
+    g: Graph[Operation, LkDiEdge],
+    cmpFun: (Operation, Operation) => Boolean,
+    label: String) =
     for (op1 <- opLst; op2 <- opLst if cmpFun(op1, op2)) // n^2
-      g += DiEdge(op1, op2)
+      g += LkDiEdge(op1, op2)(label)
 
 }

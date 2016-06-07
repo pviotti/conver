@@ -7,14 +7,13 @@ class Operation(
     val opType: OpType,
     val sTime: Long,
     val eTime: Long,
-    val arg: Int,
-    val notes: HashSet[String]) {
+    val arg: Int) {
 
   val latency = eTime - sTime
-
-  /* mutable operation end time,
+  /* eTimeX: mutable operation end time,
    * used to perform graph-based consistency checks */
   var eTimeX = eTime
+  val anomalies: HashSet[String] = new HashSet[String]
 
   def is(opt: OpType) = this.opType == opt
 
@@ -22,7 +21,7 @@ class Operation(
 
   def toLongString: String =
     "[" + proc + "," + opType + "," + arg + "," + sTime + "," + eTime +
-      (if (notes.isEmpty) "-" else notes.mkString(" ")) + "]"
+      (if (anomalies.isEmpty) "-" else anomalies.mkString(" ")) + "]"
 
   def toLabelString: String =
     opType match {
