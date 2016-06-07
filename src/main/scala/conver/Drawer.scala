@@ -8,16 +8,18 @@ import java.io.File
 import java.awt.Font
 import java.awt.Color
 import scala.collection.immutable.ListMap
+import java.awt.geom.Rectangle2D
 
 object Drawer {
 
   def drawExecution(
     nClients: Int,
     opLst: ListBuffer[Operation],
-    duration: Long): Unit = {
+    duration: Long,
+    fileName: String = "exec.png"): Unit = {
 
     val sessions: ListMap[Char, ListBuffer[Operation]] =
-      ListMap(opLst.groupBy { x => x.proc }.toSeq.sortBy(_._1): _*) // sort sessions' hashmap by ClientId
+      ListMap(opLst.groupBy(x => x.proc).toSeq.sortBy(_._1): _*) // sort sessions' hashmap by ClientId
 
     val opHeight = 40; val txtHeight = 20; val vMargin = 38; val hMargin = 50
     val goldenRatio = (1 + Math.sqrt(5)) / 2
@@ -42,10 +44,16 @@ object Drawer {
       for (op <- session) {
         val opX = fnScaleTime(op.sTime)
         val width = fnScaleTime(op.eTime) - opX
-        ig2.drawRect(opX, lineY - opHeight, width, opHeight)
+        if (op.anomalies.isEmpty)
+          ig2.drawRect(opX, lineY - opHeight, width, opHeight)
+        else {
+          ig2.setPaint(Color.decode("#C95D38"))
+          ig2.fill(new Rectangle2D.Double(opX, lineY - opHeight, width, opHeight))
+          ig2.setPaint(Color.BLACK)
+        }
         ig2.drawString(op.toLabelString, opX, lineY + txtHeight)
       }
     }
-    ImageIO.write(bi, "PNG", new File("exec.png"))
+    ImageIO.write(bi, "PNG", new File(fileName))
   }
 }
