@@ -12,7 +12,7 @@ object Checker {
   val ANOMALY_REGULAR = "reg"
   val ANOMALY_STALEREAD = "stale"
 
-  val AR = "AR"; val RB = "RB"; val CONC = "CONC"; val VIS = "VIS"; val SO = "SO"
+  val AR = 'ar; val RB = 'rb; val VIS = 'vis; val SO = 'so
 
   def checkExecution(opLst: ListBuffer[Operation]): ListBuffer[Operation] = {
 
@@ -31,23 +31,11 @@ object Checker {
     addEdges(opLst, g, rbCmp, RB)
     addEdges(opLst, g, soCmp, SO)
     addEdges(opLst, g, visCmp, VIS)
-    //addEdges(opLst, g, areConcurrent, CONC)
 
     // ending "map" to cast labeled edges to normal ones before doing set operations
     val eRb = g.edges.filter(e => e.label.equals(RB)).map(e => e.source -> e.target)
     val eVis = g.edges.filter(e => e.label.equals(VIS)).map(e => e.source -> e.target)
     val eSo = g.edges.filter(e => e.label.equals(SO)).map(e => e.source -> e.target)
-    //val eAr = g.edges.filter(e => e.label.equals(AR)).map(e => e.source -> e.target)
-    //val eSoRW = g.edges.filter(e => e.label.equals(SO) &&
-    //  (e.source.value is READ) && (e.target.value is WRITE)).map(e => e.source -> e.target)
-    //val eSoWW = g.edges.filter(e => e.label.equals(SO) &&
-    //  (e.source.value is WRITE) && (e.target.value is WRITE)).map(e => e.source -> e.target)
-    //val eSoRR = g.edges.filter(e => e.label.equals(SO) &&
-    //  (e.source.value is READ) && (e.target.value is READ)).map(e => e.source -> e.target)
-    //val eVisSoRR = eSoRR.union(eVis)
-    //val eVisSoRW = eSoRW.union(eVis)
-    //val eVisSoWW = eSoWW.union(eVis)
-    //val eVisSo = eSo.union(eVis)
 
     /* Inter-session (returns-before) monotonicity:
        * maintain returns-before write order across sessions
@@ -277,7 +265,7 @@ object Checker {
     opLst: ListBuffer[Operation],
     g: Graph[Operation, LkDiEdge],
     cmpFun: (Operation, Operation) => Boolean,
-    label: String) =
+    label: Symbol) =
     for (op1 <- opLst; op2 <- opLst if cmpFun(op1, op2)) // n^2
       g += LkDiEdge(op1, op2)(label)
 
