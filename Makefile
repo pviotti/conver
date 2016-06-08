@@ -6,3 +6,6 @@ test:
 
 clean:
 	sbt clean
+	
+eclipse:
+	sbt eclipse
