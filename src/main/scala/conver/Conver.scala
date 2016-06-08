@@ -12,16 +12,37 @@ import conver.clients.DummyRegClient
 
 object Conver extends App {
 
-  implicit val ec = ExecutionContext.global
+  val arglist = args.toList
+  type OptionMap = Map[Symbol, Any]
 
-  // params of execution - TODO arguments parsing
-  val client: Client = DummyRegClient
-  val numClients: Int = 2
-  val meanNumOp: Int = 5
+  def getArgumentsMap(map: OptionMap, list: List[String]): OptionMap = {
+    list match {
+      case Nil => map
+      case "-c" :: value :: tail =>
+        val cli = value match {
+          case "reg" => DummyRegClient
+          case "lin" => DummyLinClient
+        }
+        getArgumentsMap(map ++ Map('client -> cli), tail)
+      case "-n" :: value :: tail =>
+        getArgumentsMap(map ++ Map('num -> value.toInt), tail)
+      case "-o" :: value :: tail =>
+        getArgumentsMap(map ++ Map('op -> value.toInt), tail)
+      //case string :: Nil => getArgumentsMap(map ++ Map('infile -> string), list.tail)
+      case option :: tail => println("Unknown option " + option); sys.exit(1)
+    }
+  }
+  val options = getArgumentsMap(Map(), arglist)
+
+  val client = options.getOrElse('client, DummyRegClient).asInstanceOf[Client]
+  val numClients = options.getOrElse('num, 3).asInstanceOf[Int]
+  val meanNumOp: Int = options.getOrElse('op, 5).asInstanceOf[Int]
   val sigmaNumOp: Int = 1
   val maxInterOpInterval: Int = 100
   val readFraction: Int = 2
+  println(s"Run: $client, $numClients, $meanNumOp")
 
+  implicit val ec = ExecutionContext.global
   val futures = new ListBuffer[Future[ListBuffer[Operation]]]
   val opLst = new ListBuffer[Operation]
 

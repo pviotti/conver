@@ -6,6 +6,8 @@ trait Client {
   def write(key: String, value: Int): Any
   def delete(key: String): Any
   def terminate: Any
+
+  override def toString = this.getClass.getSimpleName
 }
 
 object Client {
