@@ -1,4 +1,4 @@
-# Con:heavy_check_mark:er
+# Con:heavy_check_mark:er [![Build Status](https://travis-ci.org/pviotti/conver-scala.svg?branch=master)](https://travis-ci.org/pviotti/conver-scala)
 
 Conver verifies implementations of the most common non-transactional consistency models.  
 
