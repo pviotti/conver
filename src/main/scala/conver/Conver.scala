@@ -32,49 +32,57 @@ object Conver extends App {
   }
   val options = getArgumentsMap(Map(), args.toList)
 
-  // cluster and clients setup
+  // start cluster
+  val clientType = options.getOrElse('client, "lin")
   var containerIds = null: Array[String]
-  var client: Client = options.getOrElse('client, "lin") match {
+  clientType match {
     case "zk" =>
       containerIds = ZkCluster.start(3)
-      ZkClient.init(ZkCluster.getConnectionString(containerIds))
-    case "reg" =>
-      DummyRegClient
-    case "lin" =>
-      DummyLinClient
-  }
-
-  // setup testers
-  val numClients = options.getOrElse('num, 3).asInstanceOf[Int]
-  val meanNumOp: Int = options.getOrElse('op, 5).asInstanceOf[Int]
-  val sigmaNumOp: Int = 1
-  val maxInterOpInterval: Int = 100
-  val readFraction: Int = 2
-  println(s"Run: $client, $numClients, $meanNumOp")
-  implicit val ec = ExecutionContext.global
-  val futures = new ListBuffer[Future[ListBuffer[Operation]]]
-  val opLst = new ListBuffer[Operation]
-  val testers = for (id <- 'a' to ('a' + numClients - 1).toChar)
-    yield new Tester(id, meanNumOp, sigmaNumOp, maxInterOpInterval, readFraction, client).init
-
-  // run execution
-  val sTime = System.nanoTime
-  for (t <- testers) futures += Future(t.run(sTime))
-  for (f <- futures) opLst ++= Await.result(f, Duration.Inf)
-  val duration = System.nanoTime - sTime
-  println("\nResults:")
-  opLst.foreach(x => println(x.toLongString))
-
-  client match {
-    case ZkClient =>
-      ZkCluster.stop(containerIds)
     case _ => ;
   }
 
-  // check and draw execution
   try {
+    // setup cluster, clients and testers
+    val numClients = options.getOrElse('num, 3).asInstanceOf[Int]
+    val meanNumOp: Int = options.getOrElse('op, 5).asInstanceOf[Int]
+    val sigmaNumOp: Int = 1
+    val maxInterOpInterval: Int = 100
+    val readFraction: Int = 2
+    implicit val ec = ExecutionContext.global
+    val futures = new ListBuffer[Future[ListBuffer[Operation]]]
+    val opLst = new ListBuffer[Operation]
+    val testers = for (id <- 'a' to ('a' + numClients - 1).toChar) yield {
+      var client: Client = clientType match {
+        case "zk" =>
+          new ZkClient().init(ZkCluster.getConnectionString(containerIds))
+        case "reg" =>
+          DummyRegClient
+        case "lin" =>
+          DummyLinClient
+      }
+      new Tester(id, meanNumOp, sigmaNumOp, maxInterOpInterval, readFraction, client).init
+    }
+    println(s"Run: $clientType, $numClients, $meanNumOp")
+
+    // run execution
+    val sTime = System.nanoTime
+    for (t <- testers) futures += Future(t.run(sTime))
+    for (f <- futures) opLst ++= Await.result(f, Duration.Inf)
+    val duration = System.nanoTime - sTime
+    println("\nResults:")
+    opLst.foreach(x => println(x.toLongString))
+
+    // check and draw execution
     Checker.checkExecution(opLst)
-  } finally {
     Drawer.drawExecution(numClients, opLst, duration)
+  } finally {
+
+    // tear down cluster
+    clientType match {
+      case "zk" =>
+        ZkCluster.stop(containerIds)
+      case _ => ;
+    }
+    
   }
 }

@@ -9,8 +9,9 @@ import org.apache.zookeeper.Watcher
 import org.apache.zookeeper.WatchedEvent
 import org.apache.zookeeper.Watcher.Event.KeeperState
 import java.util.concurrent.CountDownLatch
+import java.nio.BufferUnderflowException
 
-object ZkClient extends Client {
+class ZkClient extends Client {
 
   var zk = null: ZooKeeper
 
@@ -35,8 +36,14 @@ object ZkClient extends Client {
     this
   }
 
-  def read(key: String) =
-    ByteBuffer.wrap(zk.getData(tstPath, false, null)).getInt
+  def read(key: String) = {
+    try {
+      ByteBuffer.wrap(zk.getData(tstPath, false, null)).getInt
+    } catch {
+      case e: BufferUnderflowException => -1
+      case e: Exception => throw e
+    }
+  }
 
   def write(key: String, value: Int) =
     zk.setData(tstPath, ByteBuffer.allocate(32).putInt(value).array(), -1)
