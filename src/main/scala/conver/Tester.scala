@@ -24,11 +24,6 @@ class Tester(
   private var numOp: Int = 0
   private var opLst: ListBuffer[Operation] = new ListBuffer[Operation]
 
-  def init: Tester = {
-    //    client.init
-    this
-  }
-
   def run(t0: Long): ListBuffer[Operation] = {
     numOp = Math.floor(rnd.nextGaussian * sigmaNumOp + meanNumOp).asInstanceOf[Int]
 

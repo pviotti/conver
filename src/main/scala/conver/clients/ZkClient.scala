@@ -28,7 +28,8 @@ class ZkClient extends Client {
         }
       })
       connSignal.await()
-      zk.create(tstPath, Array.fill[Byte](1)(0), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+      zk.create(tstPath, ByteBuffer.allocate(32).putInt(Client.INIT_VALUE).array(),
+        Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
     } catch {
       case e: NodeExistsException => ;
       case e: Exception => throw e

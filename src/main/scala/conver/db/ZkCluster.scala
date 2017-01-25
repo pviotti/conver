@@ -80,12 +80,12 @@ object ZkCluster extends Cluster {
     }
   }
 
-  def main(arg: Array[String]): Unit = {
-    val contIds = start(3)
-    printState(contIds)
-    Thread.sleep(2000)
-    getConnectionString(contIds)
-    stop(contIds)
-  }
+  //  def main(arg: Array[String]): Unit = {
+  //    val contIds = start(3)
+  //    printState(contIds)
+  //    Thread.sleep(2000)
+  //    getConnectionString(contIds)
+  //    stop(contIds)
+  //  }
 
 }
