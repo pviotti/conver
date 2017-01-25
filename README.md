@@ -1,4 +1,4 @@
-# Con:heavy_check_mark:er [![Build Status](https://travis-ci.org/pviotti/conver-scala.svg?branch=master)](https://travis-ci.org/pviotti/conver-scala)
+# Conver [![Build Status](https://travis-ci.org/pviotti/conver-scala.svg?branch=master)](https://travis-ci.org/pviotti/conver-scala)
 
 Conver verifies implementations of the most common non-transactional consistency models.  
 
@@ -14,29 +14,30 @@ The approach implemented in Conver has been described in [this PaPoC 2016 paper]
 Erlang implementation. It features a new linearizability checker, and improved consistency checks.**
 
 
-## Features
+## Getting started
 
- * linearizability checker, based on pseudocode in 
-	"Existential Consistency: Measuring and Understanding Consistency at Facebook" (Lu et al., SOSP '15)
- * new and more appropriate macro- consistency models describing monotonicity of operations
-	within and across sessions ([this survey][survey] gives an overview of the consistency semantics 
+Once installed JDK, [Scala][scala] (with its building tool [sbt][sbt]) and Docker, 
+to build Conver issue:
+
+    $ sbt compile
+
+This command spawns a local cluster of Docker containers running ZooKeeper and
+performs the consistency verification test by using 10 concurrent clients
+that invoke 20 operations on average:
+
+    $ sbt "run -c zk -n 10 -o 20"
+
+
+## Features and related work
+
+At the moment Conver supports:
+
+ * linearizability checking, based on pseudocode in from [Lu et al., SOSP '15][exist]
+ * macro- consistency models describing monotonicity of operations
+	within and across sessions ([this survey][survey] provides an overview of the consistency semantics 
 	included in those macro- models)  
  * besides textual output, Conver generates a visualization of the executions, 
 	highlighting the operations that caused violations of consistency models.  
-
-To do:
-
- * integrate and test some datastores
- * ...
-
-
-## Getting started
-
-Once installed JDK and Scala, to build Conver issue:
-
-    $ make
-
-...  
 
 
 Similar projects: [Jepsen][jepsen], [Hermitage][hermitage].
@@ -56,3 +57,6 @@ License: Apache 2.0.
  [eurecom]: http://www.eurecom.fr
  [horn]: https://github.com/ahorn/linearizability-checker
  [lowe]: http://www.cs.ox.ac.uk/people/gavin.lowe/LinearizabiltyTesting/
+ [scala]: https://www.scala-lang.org/
+ [sbt]: http://www.scala-sbt.org/
+ [exist]: http://sigops.org/sosp/sosp15/current/2015-Monterey/printable/240-lu.pdf
