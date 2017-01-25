@@ -21,10 +21,10 @@ object Checker {
     val (isLinearizable, readAnomLst) = checkLinearizability(g, opLst)
     print("Total order: ")
     g.nodes.toSeq.sortBy(x => -x.outDegree).foreach(x => print(x + " ")); println
-    println("Linearizability.............................." + printBoolean(isLinearizable))
+    println("Linearizability.............................." + printBool(isLinearizable))
 
     val isRegular = readAnomLst.find(op => op.anomalies.contains(ANOMALY_STALEREAD)).isEmpty
-    println("Regular......................................" + printBoolean(isRegular))
+    println("Regular......................................" + printBool(isRegular))
 
     //TODO include initial ghost write
 
@@ -64,20 +64,18 @@ object Checker {
 
     val isCausal = isInterSessMonotonic && isIntraSessMonotonic
 
-    println("Causal......................................." + printBoolean(isCausal))
-    println("Inter-Session Monotonic (MR, MW, WFR)........" + printBoolean(isInterSessMonotonic))
-    println("Intra-Session Monotonic (RYW)................" + printBoolean(isIntraSessMonotonic))
+    println("Causal......................................." + printBool(isCausal))
+    println("Inter-Session Monotonic (MR, MW, WFR)........" + printBool(isInterSessMonotonic))
+    println("Intra-Session Monotonic (RYW)................" + printBool(isIntraSessMonotonic))
 
     if (isLinearizable) assert(isRegular)
-    if (isRegular) {
-      assert(isCausal); assert(isInterSessMonotonic); assert(isIntraSessMonotonic)
-    }
+    if (isRegular) assert(isCausal && isInterSessMonotonic && isIntraSessMonotonic)
 
     print("Anomalies: "); readAnomLst.foreach(x => print(x + " ")); println
     opLst
   }
 
-  def printBoolean(b: Boolean): String = b match {
+  def printBool(b: Boolean): String = b match {
     case true => Console.GREEN + "[OK]" + Console.RESET
     case false => Console.RED + "[KO]" + Console.RESET
   }

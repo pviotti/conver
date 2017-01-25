@@ -25,7 +25,7 @@ class Tester(
   private var opLst: ListBuffer[Operation] = new ListBuffer[Operation]
 
   def init: Tester = {
-    client.init
+    //    client.init
     this
   }
 
