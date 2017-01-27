@@ -12,7 +12,7 @@ import conver.clients.DummyRegClient
 import conver.clients.ZkClient
 import conver.db.ZkCluster
 import java.util.concurrent.Executors
-
+import com.github.dockerjava.api.exception.ConflictException
 
 object Conver extends App {
 
@@ -40,6 +40,7 @@ object Conver extends App {
   clientType match {
     case "zk" =>
       containerIds = ZkCluster.start(3)
+      ZkCluster.slowDownNetwork(containerIds)
     case _ => ;
   }
 
@@ -79,8 +80,8 @@ object Conver extends App {
     for (t <- testers) futures += Future(t.run(sTime))
     for (f <- futures) opLst ++= Await.result(f, Duration.Inf)
     val duration = System.nanoTime - sTime
-    println("\nResults:")
-    opLst.foreach(x => println(x.toLongString))
+    //println("\nResults:")
+    //opLst.foreach(x => println(x.toLongString))
 
     // check and draw execution
     Checker.checkExecution(opLst)

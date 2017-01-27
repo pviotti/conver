@@ -28,6 +28,8 @@ object Checker {
   val MRW = 'mrw
   val RYW = 'ryw
 
+  // TODO break loops http://stackoverflow.com/questions/2742719/how-do-i-break-out-of-a-loop-in-scala
+
   def checkExecution(opLst: ListBuffer[Operation]): (ListBuffer[Operation], Map[Symbol, Boolean]) = {
 
     val g: Graph[Operation, LkDiEdge] = Graph()

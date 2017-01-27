@@ -2,10 +2,14 @@ package conver.db
 
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.core.command.WaitContainerResultCallback
+import com.github.dockerjava.core.command.ExecStartResultCallback
+import com.github.dockerjava.core.command.AttachContainerResultCallback
+import com.github.dockerjava.api.model.Frame
+import java.util.LinkedList
+import scala.collection.mutable.ListBuffer
 
 object ZkCluster extends Cluster {
 
-  val docker = DockerClientBuilder.getInstance().build()
   val netName = "zk"
 
   def start(num: Int): Array[String] = {
@@ -81,11 +85,12 @@ object ZkCluster extends Cluster {
   }
 
   //  def main(arg: Array[String]): Unit = {
-  //    val contIds = start(3)
-  //    printState(contIds)
-  //    Thread.sleep(2000)
-  //    getConnectionString(contIds)
-  //    stop(contIds)
+  //      var contIds = start(3)
+  //      slowDownNetwork(contIds)
+  //      //printState(contIds)
+  //      Thread.sleep(2000)
+  //      getConnectionString(contIds)
+  //      stop(contIds)
   //  }
 
 }
