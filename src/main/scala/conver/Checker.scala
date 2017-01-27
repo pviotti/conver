@@ -9,70 +9,100 @@ import scalax.collection.edge.LkDiEdge
 
 object Checker {
 
-  val ANOMALY_REGULAR = "reg"
-  val ANOMALY_STALEREAD = "stale"
+  // edge markers
+  val AR = 'ar /* arbitration order */
+  val RB = 'rb /* returns-before order */
+  val VIS = 'vis /* visibility order */
+  val SO = 'so /* session order */
 
-  val AR = 'ar; val RB = 'rb; val VIS = 'vis; val SO = 'so
+  // operation anomaly markers
+  val ANOMALY_REGULAR = 'reg
+  val ANOMALY_STALEREAD = 'stale
 
-  def checkExecution(opLst: ListBuffer[Operation]): ListBuffer[Operation] = {
+  // consistency semantics
+  val LIN = 'lin
+  val REG = 'reg
+  val SEQ = 'seq
+  val CAU = 'cau
+  val WFR = 'wfr
+  val MRW = 'mrw
+  val RYW = 'ryw
+
+  def checkExecution(opLst: ListBuffer[Operation]): (ListBuffer[Operation], Map[Symbol, Boolean]) = {
 
     val g: Graph[Operation, LkDiEdge] = Graph()
+    // XXX include initial ghost write
+    var cons = Map[Symbol, Boolean]()
 
     val (isLinearizable, readAnomLst) = checkLinearizability(g, opLst)
-    print("Total order: ")
-    g.nodes.toSeq.sortBy(x => -x.outDegree).foreach(x => print(x + " ")); println
-    println("Linearizability.............................." + printBool(isLinearizable))
-
-    val isRegular = readAnomLst.find(op => op.anomalies.contains(ANOMALY_STALEREAD)).isEmpty
-    println("Regular......................................" + printBool(isRegular))
-
-    //TODO include initial ghost write
+    cons += (LIN -> isLinearizable)
+    cons += (REG -> readAnomLst.find(op => op.anomalies.contains(ANOMALY_STALEREAD)).isEmpty)
 
     addEdges(opLst, g, rbCmp, RB)
     addEdges(opLst, g, soCmp, SO)
     addEdges(opLst, g, visCmp, VIS)
-
-    // ending "map" to cast labeled edges to normal ones before doing set operations
+    // (the last "map" casts labeled edges to normal ones before doing set operations)
     val eRb = g.edges.filter(e => e.label.equals(RB)).map(e => e.source -> e.target)
     val eVis = g.edges.filter(e => e.label.equals(VIS)).map(e => e.source -> e.target)
     val eSo = g.edges.filter(e => e.label.equals(SO)).map(e => e.source -> e.target)
 
-    /* Inter-session (returns-before) monotonicity:
-       * maintain returns-before write order across sessions
-       * (i.e. reads and writes belong to different sessions).
-       * Includes: Monotonic Writes, Monotonic Reads, Writes Follow Reads */
-    var isInterSessMonotonic = true
-    for ((w1, r1) <- eVis; (w2, r2) <- eVis)
-      if (eRb.contains((w1, w2)) && (eSo.contains(r2, r1))
-        && (w1.value.proc != r2.value.proc))
-        isInterSessMonotonic = false
+    // Monotonic reads and monotonic writes
+    cons += (MRW -> true)
+    for ((w1, w2) <- eSo; (r1, r2) <- eSo)
+      if ((w1.value is WRITE) && (w2.value is WRITE) && (r1.value is READ) && (r2.value is READ)
+        && eVis.contains(w1, r2) && eVis.contains(w2, r1))
+        cons += (MRW -> false)
+
+    // Writes follow reads
+    cons += (WFR -> true)
+    for ((w1, r1) <- eVis; (r2, w2) <- eSo; (r3, r4) <- eSo if (r1 == r2))
+      if (eVis.contains(w2, r3) && eVis.contains(w1, r4))
+        cons += (WFR -> false)
 
     /* Intra-session (returns-before) monotonicity:
-       * maintain returns-before write order
-       * for reads and writes belonging to the same session.
-       * Includes: Read-Your-Writes */
-    var isIntraSessMonotonic = true
-    for ((w0, r0) <- eVis; (w1, r01) <- eSo if (r0 == r01))
-      if ((w1.value is WRITE) && eRb.contains((w0, w1)))
-        isIntraSessMonotonic = false
+     * maintain returns-before write order for reads and writes belonging to the same session.
+     * Includes: Read-Your-Writes */
+    cons += (RYW -> true)
+    for ((w0, w1) <- eSo; (w2, r0) <- eSo)
+      if ((w2 == w1) && (w0.value is WRITE) && (w1.value is WRITE)
+        && eVis.contains(w0, r0))
+        cons += (RYW -> false)
 
-    //val isMonotonicWrites = eAr.intersect(eSoWW) == eSoWW
-    //val isMonotonicReads = eAr.intersect(eVisSoRR) == eVisSoRR
-    //val isWritesFollowReads = eAr.intersect(eVisSoRW) == eVisSoRW
-    //val isCausal = eAr.intersect(eVisSo) == eVisSo && isPRAM
-    //val isPRAM = eAr.intersect(eSo) == eSo
+    /* A certain total order of writes is respected across sessions.
+     * (there may be simple "stale reads" though) */
+    var isCrossSessionTotalOrder = true
+    for ((r1, r2) <- eSo; (r3, r4) <- eSo) {
+      if ((r1 is READ) && (r2 is READ) && (r3 is READ) && (r4 is READ)
+        && (r1.value.arg == r4.value.arg) && (r2.value.arg == r3.value.arg)
+        && (r1.value.arg != r2.value.arg) && (r3.value.arg != r4.value.arg)) {
+        println(s"E-SO: ${r1.value} ${r2.value} ${r3.value} ${r4.value}")
+        isCrossSessionTotalOrder = false
+      }
+    }
 
-    val isCausal = isInterSessMonotonic && isIntraSessMonotonic
+    cons += (CAU -> (cons(RYW) && cons(WFR) && cons(MRW)))
+    cons += (SEQ -> (cons(CAU) && isCrossSessionTotalOrder))
 
-    println("Causal......................................." + printBool(isCausal))
-    println("Inter-Session Monotonic (MR, MW, WFR)........" + printBool(isInterSessMonotonic))
-    println("Intra-Session Monotonic (RYW)................" + printBool(isIntraSessMonotonic))
+    print("Total order (tentative): ")
+    g.nodes.toSeq.sortBy(x => -x.outDegree).foreach(x => print(x + " ")); println
 
-    if (isLinearizable) assert(isRegular)
-    if (isRegular) assert(isCausal && isInterSessMonotonic && isIntraSessMonotonic)
+    println("Linearizability............................" + printBool(cons(LIN)))
+    println("Regular...................................." + printBool(cons(REG)))
+    println("Sequential................................." + printBool(cons(SEQ)))
+    println("Causal....................................." + printBool(cons(CAU)))
+    println("Session causality (WFR)...................." + printBool(cons(WFR)))
+    println("Inter-Session Monotonicity (MR, MW)........" + printBool(cons(MRW)))
+    println("Intra-Session Monotonicity (RYW)..........." + printBool(cons(RYW)))
 
-    print("Anomalies: "); readAnomLst.foreach(x => print(x + " ")); println
-    opLst
+    print("Anomalies: ")
+    if (readAnomLst.isEmpty) print("[none]")
+    else readAnomLst.foreach(x => print(x + " "))
+    println
+
+    //if (cons(LIN)) assert(cons(REG))
+    //if (cons(REG)) assert(cons(SEQ))
+
+    (opLst, cons)
   }
 
   def printBool(b: Boolean): String = b match {
@@ -202,7 +232,7 @@ object Checker {
     }
   }
 
-  def checkGraph(g: Graph[Operation, LkDiEdge], currentRead: Operation): (Boolean, String) = {
+  def checkGraph(g: Graph[Operation, LkDiEdge], currentRead: Operation): (Boolean, Symbol) = {
 
     if (!g.isAcyclic) {
 
@@ -233,11 +263,11 @@ object Checker {
 
       (false, anomalyType)
     } else
-      (true, "")
+      (true, null)
   }
 
   /**
-   * Compare function for return-before ordering
+   * Compare function for returns-before ordering
    * based on adjustable operation end time
    * used for graph-based linearizability checking.
    */

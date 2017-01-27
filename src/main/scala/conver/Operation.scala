@@ -13,7 +13,7 @@ class Operation(
   /* eTimeX: mutable operation end time,
    * used to perform graph-based consistency checks */
   var eTimeX = eTime
-  val anomalies: HashSet[String] = new HashSet[String]
+  val anomalies = new HashSet[Symbol]
 
   def is(opt: OpType) = this.opType == opt
 
