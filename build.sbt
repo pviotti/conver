@@ -6,9 +6,9 @@ settings(
   scalaVersion := "2.11.8"
 )
 
-libraryDependencies += "com.assembla.scala-incubator" %% "graph-core" % "1.11.0"
-libraryDependencies += "org.scalactic" %% "scalactic" % "2.2.6"
-libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test"
+libraryDependencies += "org.scala-graph" %% "graph-core" % "1.11.4"
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 
 libraryDependencies += "com.github.docker-java" % "docker-java" % "3.0.7"
 
