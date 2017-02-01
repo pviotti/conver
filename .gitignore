@@ -1,6 +1,7 @@
+etc/
 target/
-bin
-*.png
+bin/
+/*.png
 .project
 .classpath
 .cache-*
