@@ -18,3 +18,6 @@ libraryDependencies += "org.apache.zookeeper" % "zookeeper" % "3.4.9"
 // http://stackoverflow.com/questions/13162671/missing-dependency-class-javax-annotation-nullable
 // http://stackoverflow.com/questions/10007994/why-do-i-need-jsr305-to-use-guava-in-scala
 libraryDependencies += "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile"
+
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.1.9"
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
