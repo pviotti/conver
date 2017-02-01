@@ -52,7 +52,8 @@ class ZkClient extends Client {
   def delete(key: String) =
     zk.delete(tstPath, -1)
 
-  def terminate = Unit
+  def terminate =
+    zk.close()
 
   //  def main(arg: Array[String]): Unit = {
   //    val a = init("172.18.0.2:2181,172.18.0.3:2181,172.18.0.4:2181")

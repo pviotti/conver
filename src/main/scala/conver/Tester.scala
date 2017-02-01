@@ -37,7 +37,7 @@ class Tester(
         val eTime = System.nanoTime - t0
         val op = new Operation(id, READ, sTime, eTime, arg)
         opLst += op
-        print(s"$op ")
+        //print(s"$op ")
       } else {
         val arg = MonotonicOracle.getNextMonotonicInt
         val sTime = System.nanoTime - t0
@@ -45,9 +45,11 @@ class Tester(
         val eTime = System.nanoTime - t0
         val op = new Operation(id, WRITE, sTime, eTime, arg)
         opLst += op
-        print(s"$op ")
+        //print(s"$op ")
       }
     }
+
+    client.terminate
 
     opLst
   }

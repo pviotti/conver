@@ -33,9 +33,12 @@ object Conver extends App {
     }
   }
   val options = getArgumentsMap(Map(), args.toList)
+  val clientType = options.getOrElse('client, "lin")
+  val numClients = options.getOrElse('num, 3).asInstanceOf[Int]
+  val meanNumOp: Int = options.getOrElse('op, 5).asInstanceOf[Int]
+  println(s"Started. Database: $clientType, n. clients: $numClients, avg op/client: $meanNumOp")
 
   // start cluster
-  val clientType = options.getOrElse('client, "lin")
   var containerIds = null: Array[String]
   clientType match {
     case "zk" =>
@@ -46,7 +49,6 @@ object Conver extends App {
 
   // tweak the parallelism to execute futures
   // http://stackoverflow.com/a/15285441
-  val numClients = options.getOrElse('num, 3).asInstanceOf[Int]
   implicit val ec = new ExecutionContext {
     val threadPool = Executors.newFixedThreadPool(numClients * 2);
     override def reportFailure(cause: Throwable): Unit = {};
@@ -56,7 +58,6 @@ object Conver extends App {
 
   try {
     // setup cluster, clients and testers
-    val meanNumOp: Int = options.getOrElse('op, 5).asInstanceOf[Int]
     val sigmaNumOp: Int = 1
     val maxInterOpInterval: Int = 50
     val readFraction: Int = 2
@@ -70,8 +71,7 @@ object Conver extends App {
           DummyLinClient
       }
       new Tester(id, meanNumOp, sigmaNumOp, maxInterOpInterval, readFraction, client)
-    }
-    println(s"Run: $clientType, $numClients, $meanNumOp")
+    }    
 
     // run execution
     val futures = new ListBuffer[Future[ListBuffer[Operation]]]

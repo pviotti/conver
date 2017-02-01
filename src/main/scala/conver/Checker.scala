@@ -88,6 +88,11 @@ object Checker {
     print("Total order (tentative): ")
     g.nodes.toSeq.sortBy(x => -x.outDegree).foreach(x => print(x + " ")); println
 
+    print("Anomalies: ")
+    if (readAnomLst.isEmpty) print("[none]")
+    else readAnomLst.foreach(x => print(x + " "))
+    println
+
     println("Linearizability............................" + printBool(cons(LIN)))
     println("Regular...................................." + printBool(cons(REG)))
     println("Sequential................................." + printBool(cons(SEQ)))
@@ -95,11 +100,6 @@ object Checker {
     println("Session causality (WFR)...................." + printBool(cons(WFR)))
     println("Inter-Session Monotonicity (MR, MW)........" + printBool(cons(MRW)))
     println("Intra-Session Monotonicity (RYW)..........." + printBool(cons(RYW)))
-
-    print("Anomalies: ")
-    if (readAnomLst.isEmpty) print("[none]")
-    else readAnomLst.foreach(x => print(x + " "))
-    println
 
     //if (cons(LIN)) assert(cons(REG))
     //if (cons(REG)) assert(cons(SEQ))
@@ -152,7 +152,7 @@ object Checker {
            * and then spot possible cycles due to anomalies
            * that otherwise would go unnoticed (e.g. new-old inversion). */
           if (op.eTimeX < matchedW.value.eTimeX) {
-            println(s"Refining ${matchedW.value} to $op")
+            //println(s"Refining ${matchedW.value} to $op")
             matchedW.value.eTimeX = op.eTimeX
           }
         }

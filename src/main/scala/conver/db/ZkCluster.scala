@@ -41,7 +41,7 @@ object ZkCluster extends Cluster {
 
       val netInfo = docker.inspectNetworkCmd().withNetworkId(network.getId).exec()
       val ipAddr = netInfo.getContainers.get(container.getId).getIpv4Address
-      println("zk" + i + " started: " + ipAddr)
+      println("Server zk" + i + " started: " + ipAddr)
 
       containers(i - 1) = container.getId
     }
@@ -71,7 +71,7 @@ object ZkCluster extends Cluster {
 
       if (statusCode == 143) { // SIGTERM
         docker.removeContainerCmd(cId).exec()
-        println(cId.substring(0, 5) + " successfully terminated")
+        //println("Container " + cId.substring(0, 5) + " successfully terminated")
       }
     }
     docker.removeNetworkCmd(netName).exec()
