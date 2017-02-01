@@ -1,17 +1,22 @@
 # Conver [![Build Status](https://travis-ci.org/pviotti/conver-scala.svg?branch=master)](https://travis-ci.org/pviotti/conver-scala)
 
-Conver verifies implementations of the most common non-transactional consistency models.  
+Conver is a testing tool that verifies implementations of the most common 
+non-transactional consistency models.  
 
-It spawns client processes that perform concurrent reads
-and writes on the distributed store, and records their outcomes.
-Then it builds graph entities that express ordering and mutual visibility of operations.
-Finally, it uses such graph entities to check consistency semantics
+It spawns client processes that perform concurrent reads and writes on 
+the distributed store, and records their outcomes.
+After the execution, it builds graph entities that describe ordering and 
+mutual visibility of operations.
+Finally, it uses these graph entities to check consistency semantics
 defined as first-order logic predicates.  
+
+By default, Conver conveniently starts distributed stores as local clusters of Docker containers,
+and can emulate WAN latencies through `netem` (without requiring admin rights).  
 
 The approach implemented in Conver has been described in [this PaPoC 2016 paper][papoc].  
 
-**NOTE: This is a work-in-progress Scala rewrite of the [original](https://github.com/pviotti/conver) 
-Erlang implementation. It features a new linearizability checker, and improved consistency checks.**
+NOTE: This is a work-in-progress Scala rewrite of the [original](https://github.com/pviotti/conver) 
+Erlang implementation. It features a new linearizability checker, and improved consistency checks.
 
 
 ## Getting started
@@ -23,24 +28,29 @@ to build Conver issue:
 
 This command spawns a local cluster of Docker containers running ZooKeeper and
 performs the consistency verification test by using 10 concurrent clients
-that invoke 20 operations on average:
+that invoke 10 operations on average:
 
-    $ sbt "run -c zk -n 10 -o 20"
+    $ sbt "run -c zk -n 10 -o 10"
 
+The resulting textual and graphical outputs look like the following.
+
+
+![Conver execution](https://i.imgur.com/NSuyhVp.png)
+ 
 
 ## Features and related work
 
 At the moment Conver supports:
 
- * linearizability checking, based on pseudocode in from [Lu et al., SOSP '15][exist]
- * macro- consistency models describing monotonicity of operations
-	within and across sessions ([this survey][survey] provides an overview of the consistency semantics 
-	included in those macro- models)  
- * besides textual output, Conver generates a visualization of the executions, 
-	highlighting the operations that caused violations of consistency models.  
+ * linearizability checking based on pseudocode from [Lu et al., SOSP '15][exist], and
+   checking of consistency semantics describing causality and monotonicity of operations
+   within and across sessions (e.g., monotonic writes, monotonic reads, sequential consistency, regular 
+   semantics, causal consistency --- [this survey][survey] provides an overview of all these consistency 
+   semantics)  
+ * WAN latencies emulation
 
 
-Similar projects: [Jepsen][jepsen], [Hermitage][hermitage].
+Similar projects: [Jepsen][jepsen], [Hermitage][hermitage], [WatCA][watca].  
 Linearizability checkers: [Horn's][horn], [Lowe's][lowe].  
 
 
@@ -60,3 +70,4 @@ License: Apache 2.0.
  [scala]: https://www.scala-lang.org/
  [sbt]: http://www.scala-sbt.org/
  [exist]: http://sigops.org/sosp/sosp15/current/2015-Monterey/printable/240-lu.pdf
+ [watca]: https://github.com/wgolab/WatCA
