@@ -6,6 +6,8 @@ settings(
   scalaVersion := "2.11.8"
 )
 
+EclipseKeys.withJavadoc := true
+
 libraryDependencies += "org.scala-graph" %% "graph-core" % "1.11.4"
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test"
