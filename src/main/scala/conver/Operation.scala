@@ -9,7 +9,7 @@ class Operation(
     val eTime: Long,
     val arg: Int) {
 
-  val latency = eTime - sTime
+  lazy val latency = eTime - sTime
   /* eTimeX: mutable operation end time,
    * used to perform graph-based consistency checks */
   var eTimeX = eTime
