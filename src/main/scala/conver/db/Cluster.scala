@@ -1,29 +1,23 @@
 package conver.db
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConversions._
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.core.command.AttachContainerResultCallback
 import com.github.dockerjava.api.model.Frame
 import com.github.dockerjava.core.command.WaitContainerResultCallback
+import com.github.dockerjava.core.command.PullImageResultCallback
 
 abstract class Cluster {
+  
+  val docker = DockerClientBuilder.getInstance().build()
+  val iptablesDockerImage = "vimagick/iptables:latest"
 
   def start(num: Int): Array[String]
 
-  val docker = DockerClientBuilder.getInstance().build()
-
   def stop(cIds: Array[String]) = {
-    for (cId <- cIds) {
-      docker.stopContainerCmd(cId).exec()
-      val statusCode = docker.waitContainerCmd(cId)
-        .exec(new WaitContainerResultCallback)
-        .awaitStatusCode()
-
-      if (statusCode == 143 || statusCode == 137) { // SIGTERM, or SIGKILL statuscode
-        docker.removeContainerCmd(cId).exec()
-        //println("Container " + cId.substring(0, 5) + " successfully terminated")
-      }
-    }
+    for (cId <- cIds)
+      docker.removeContainerCmd(cId).withForce(true).exec()
   }
 
   def slowDownNetwork(cIds: Array[String]) = {
@@ -37,19 +31,22 @@ abstract class Cluster {
       val ifnum = cb.toString().split(":")(0)
       ifLst += (ifnum.toInt + 1).toString // usually, host's interface n. == container interface n. + 1
     }
+    
+    pullDockerImage(iptablesDockerImage)
 
     // execute "ip link" to get containers' interface name on the host
     val cb1 = new StringContainerResultCallback()
-    val iptableContainer = docker.createContainerCmd("vimagick/iptables:latest")
+    val iptableContainer = docker.createContainerCmd(iptablesDockerImage)
       .withCmd("ip", "link")
-      .withNetworkMode("host") // important to see other containers' devices
+      .withNetworkMode("host") // to see other containers' devices
       .withPrivileged(true)
       .exec()
-    docker.startContainerCmd(iptableContainer.getId()).exec()
+    docker.startContainerCmd(iptableContainer.getId).exec()
     docker.attachContainerCmd(iptableContainer.getId)
       .withStdErr(true).withStdOut(true)
       .withFollowStream(true).withLogs(true)
       .exec(cb1).awaitCompletion()
+    docker.removeContainerCmd(iptableContainer.getId).withForce(true).exec()
     val iplinkstr = cb1.toString()
     //println(iplinkstr)
 
@@ -59,12 +56,21 @@ abstract class Cluster {
       val ifh = pat.findFirstIn(iplinkstr).get.split(" ")(1).split("@")(0) // e.g. "veth25b990c"
 
       val cb2 = new StringContainerResultCallback()
-      val iptableContainer = docker.createContainerCmd("vimagick/iptables:latest")
+      val iptableContainer = docker.createContainerCmd(iptablesDockerImage)
         .withCmd("tc", "qdisc", "replace", "dev", ifh, "root", "netem", "delay", "75ms", "100ms", "distribution", "normal")
-        .withNetworkMode("host") // important to see other containers' devices
+        .withNetworkMode("host") // to see other containers' devices
         .withPrivileged(true)
         .exec()
-      docker.startContainerCmd(iptableContainer.getId()).exec()
+      docker.startContainerCmd(iptableContainer.getId).exec()
+      docker.removeContainerCmd(iptableContainer.getId).withForce(true).exec()
+    }
+  }
+
+  protected def pullDockerImage(imageId: String) = {
+    val images = docker.listImagesCmd().exec();
+    if (!images.exists { x => x.getRepoTags.head.equals(imageId) }) {
+      println(s"Pulling docker image $imageId...")
+      docker.pullImageCmd(imageId).exec(new PullImageResultCallback()).awaitSuccess();
     }
   }
 }

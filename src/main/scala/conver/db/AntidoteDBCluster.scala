@@ -17,6 +17,9 @@ import java.util.LinkedList
 
 object AntidoteDBCluster extends Cluster {
 
+  val antidoteDockerImage = "mweber/antidotedb:latest"
+  val erlangDockerImage = "erlang:19-slim"
+  
   // Bash script to call Erlang scripts that connects Antidote containers
   // as in https://github.com/mweberUKL/antidote_dev/tree/master/docker_dcs
   val scriptLink = "#!/bin/bash \nsleep 10; \nescript /code/connect_dcs.erl"
@@ -31,11 +34,14 @@ object AntidoteDBCluster extends Cluster {
 
     // TODO check and handle ConflictException in case network
     // or containers are already there
+    
+    pullDockerImage(antidoteDockerImage)
+    pullDockerImage(erlangDockerImage)
 
     var containers = Array.ofDim[String](num)
 
     for (i <- 1 to num) {
-      val container = docker.createContainerCmd("mweber/antidotedb:latest")
+      val container = docker.createContainerCmd(antidoteDockerImage)
         .withName("antidote" + i)
         .withHostName("antidote" + i)
         .withEnv("NODE_NAME=antidote@antidote" + i, "SHORT_NAME=true")
@@ -53,7 +59,7 @@ object AntidoteDBCluster extends Cluster {
     val lstLinks = new LinkedList[Link]
     for (i <- 1 to num)
       lstLinks.add(new Link("antidote" + i, "antidote" + i + "link"))
-    val linkContainer = docker.createContainerCmd("erlang:19")
+    val linkContainer = docker.createContainerCmd(erlangDockerImage)
       .withName("link")
       .withHostName("link")
       .withBinds(new Bind(scriptDir.toString, new Volume("/code")))
@@ -108,7 +114,7 @@ object AntidoteDBCluster extends Cluster {
     for (i <- 1 to num)
       writer.write(scriptSyncInterDcMgr.replaceAll("ID", i.toString))
 
-    writer.write("\tio:format(\"Antidote cluster connection setup!\").")
+    writer.write("\tio:format(\"Antidote cluster setup completed!\").")
     writer.close()
 
     (tmpDir, tmpScriptFile, tmpEscriptFile)

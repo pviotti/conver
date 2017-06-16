@@ -1,16 +1,11 @@
 package conver.db
 
-import com.github.dockerjava.core.DockerClientBuilder
-import com.github.dockerjava.core.command.WaitContainerResultCallback
-import com.github.dockerjava.core.command.ExecStartResultCallback
-import com.github.dockerjava.core.command.AttachContainerResultCallback
-import com.github.dockerjava.api.model.Frame
-import java.util.LinkedList
-import scala.collection.mutable.ListBuffer
+import com.github.dockerjava.core.command.PullImageResultCallback
 
 object ZkCluster extends Cluster {
 
   val netName = "zk"
+  val zkDockerImage = "pviotti/zookeeper:latest"
 
   def start(num: Int): Array[String] = {
 
@@ -18,6 +13,8 @@ object ZkCluster extends Cluster {
     // or containers are already there
     //val info = docker.infoCmd().exec()
     //println(docker.infoCmd().exec())
+    
+    pullDockerImage(zkDockerImage)
 
     var containers = Array.ofDim[String](num)
     val network = docker.createNetworkCmd().withName(netName).exec()
@@ -30,7 +27,7 @@ object ZkCluster extends Cluster {
     val servers = sb.toString
 
     for (i <- 1 to num) {
-      val container = docker.createContainerCmd("pviotti/zookeeper:latest")
+      val container = docker.createContainerCmd(zkDockerImage)
         .withName("zookeeper" + i)
         .withHostName("zookeeper" + i)
         .withEnv("MYID=" + i, servers)
@@ -73,13 +70,12 @@ object ZkCluster extends Cluster {
     }
   }
 
-  //  def main(arg: Array[String]): Unit = {
-  //      var contIds = start(3)
-  //      slowDownNetwork(contIds)
-  //      //printState(contIds)
-  //      Thread.sleep(2000)
-  //      getConnectionString(contIds)
-  //      stop(contIds)
-  //  }
-
+//    def main(arg: Array[String]): Unit = {
+//        var contIds = start(3)
+//        slowDownNetwork(contIds)
+//        //printState(contIds)
+//        Thread.sleep(2000)
+//        getConnectionString(contIds)
+//        stop(contIds)
+//    }
 }

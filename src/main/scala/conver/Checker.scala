@@ -247,7 +247,7 @@ object Checker {
        * remove a random edge. */
 
       val c = g.findCycle.getOrElse(throw new IllegalStateException("No cycles found"))
-      println(s"Cycle found: $c")
+      println(s"$c")
 
       /* If the cycle contains writes that are concurrent
        * with the read just checked, then the anomaly rules out
