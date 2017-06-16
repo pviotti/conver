@@ -16,7 +16,6 @@ object ZkCluster extends Cluster {
 
     // TODO check and handle ConflictException in case network
     // or containers are already there
-
     //val info = docker.infoCmd().exec()
     //println(docker.infoCmd().exec())
 
@@ -31,7 +30,7 @@ object ZkCluster extends Cluster {
     val servers = sb.toString
 
     for (i <- 1 to num) {
-      val container = docker.createContainerCmd("pviotti/zookeeper:3.4.9")
+      val container = docker.createContainerCmd("pviotti/zookeeper:latest")
         .withName("zookeeper" + i)
         .withHostName("zookeeper" + i)
         .withEnv("MYID=" + i, servers)
@@ -62,18 +61,8 @@ object ZkCluster extends Cluster {
     sb.toString()
   }
 
-  def stop(cIds: Array[String]) = {
-    for (cId <- cIds) {
-      docker.stopContainerCmd(cId).exec()
-      val statusCode = docker.waitContainerCmd(cId)
-        .exec(new WaitContainerResultCallback)
-        .awaitStatusCode()
-
-      if (statusCode == 143) { // SIGTERM
-        docker.removeContainerCmd(cId).exec()
-        //println("Container " + cId.substring(0, 5) + " successfully terminated")
-      }
-    }
+  override def stop(cIds: Array[String]) = {
+    super.stop(cIds)
     docker.removeNetworkCmd(netName).exec()
   }
 

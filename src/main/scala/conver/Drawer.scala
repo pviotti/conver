@@ -47,7 +47,10 @@ object Drawer {
         if (op.anomalies.isEmpty)
           ig2.drawRect(opX, lineY - opHeight, width, opHeight)
         else {
-          ig2.setPaint(Color.decode("#C95D38"))
+          if (op.anomalies.contains(Checker.ANOMALY_FAILED))
+            ig2.setPaint(Color.GRAY)
+          else
+            ig2.setPaint(Color.decode("#C95D38"))
           ig2.fill(new Rectangle2D.Double(opX, lineY - opHeight, width, opHeight))
           ig2.setPaint(Color.BLACK)
         }

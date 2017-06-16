@@ -14,7 +14,7 @@ class Operation(
    * used to perform graph-based consistency checks */
   var eTimeX = eTime
   val anomalies = new HashSet[Symbol]
-
+  
   def is(opt: OpType) = this.opType == opt
 
   override def toString = proc + ":" + opType + ":" + arg

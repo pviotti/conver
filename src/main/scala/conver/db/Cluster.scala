@@ -4,13 +4,27 @@ import scala.collection.mutable.ListBuffer
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.core.command.AttachContainerResultCallback
 import com.github.dockerjava.api.model.Frame
+import com.github.dockerjava.core.command.WaitContainerResultCallback
 
 abstract class Cluster {
 
   def start(num: Int): Array[String]
-  def stop(cIds: Array[String])
 
   val docker = DockerClientBuilder.getInstance().build()
+
+  def stop(cIds: Array[String]) = {
+    for (cId <- cIds) {
+      docker.stopContainerCmd(cId).exec()
+      val statusCode = docker.waitContainerCmd(cId)
+        .exec(new WaitContainerResultCallback)
+        .awaitStatusCode()
+
+      if (statusCode == 143 || statusCode == 137) { // SIGTERM, or SIGKILL statuscode
+        docker.removeContainerCmd(cId).exec()
+        //println("Container " + cId.substring(0, 5) + " successfully terminated")
+      }
+    }
+  }
 
   def slowDownNetwork(cIds: Array[String]) = {
 

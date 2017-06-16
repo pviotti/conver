@@ -13,9 +13,13 @@ import conver.clients.ZkClient
 import conver.db.ZkCluster
 import java.util.concurrent.Executors
 import com.github.dockerjava.api.exception.ConflictException
+import conver.clients.AntidoteDBClient
+import conver.clients.AntidoteDBClient
+import conver.db.AntidoteDBCluster
+import conver.db.Cluster
 
 object Conver extends App {
-
+  
   // argument parsing
   type OptionMap = Map[Symbol, Any]
 
@@ -36,14 +40,18 @@ object Conver extends App {
   val clientType = options.getOrElse('client, "lin")
   val numClients = options.getOrElse('num, 3).asInstanceOf[Int]
   val meanNumOp: Int = options.getOrElse('op, 5).asInstanceOf[Int]
+  val clusterSize = 3
   println(s"Started. Database: $clientType, n. clients: $numClients, avg op/client: $meanNumOp")
 
   // start cluster
   var containerIds = null: Array[String]
   clientType match {
     case "zk" =>
-      containerIds = ZkCluster.start(3)
+      containerIds = ZkCluster.start(clusterSize)
       ZkCluster.slowDownNetwork(containerIds)
+    case "antidote" =>
+      containerIds = AntidoteDBCluster.start(clusterSize)
+      AntidoteDBCluster.slowDownNetwork(containerIds)
     case _ => ;
   }
 
@@ -65,13 +73,15 @@ object Conver extends App {
       var client: Client = clientType match {
         case "zk" =>
           new ZkClient().init(ZkCluster.getConnectionString(containerIds))
+        case "antidote" =>
+          new AntidoteDBClient().init(AntidoteDBCluster.getConnectionString(clusterSize))
         case "reg" =>
           DummyRegClient
         case "lin" =>
           DummyLinClient
       }
       new Tester(id, meanNumOp, sigmaNumOp, maxInterOpInterval, readFraction, client)
-    }    
+    }
 
     // run execution
     val futures = new ListBuffer[Future[ListBuffer[Operation]]]
@@ -84,8 +94,13 @@ object Conver extends App {
     //opLst.foreach(x => println(x.toLongString))
 
     // check and draw execution
-    Checker.checkExecution(opLst)
-    Drawer.drawExecution(numClients, opLst, duration)
+    try {
+      Checker.checkExecution(opLst)
+    } catch {
+      case e: Exception => e.printStackTrace
+    } finally {
+      Drawer.drawExecution(numClients, opLst, duration)
+    }
   } finally {
 
     ec.shutdown()
@@ -94,6 +109,8 @@ object Conver extends App {
     clientType match {
       case "zk" =>
         ZkCluster.stop(containerIds)
+      case "antidote" =>
+        AntidoteDBCluster.stop(containerIds)
       case _ => ;
     }
 

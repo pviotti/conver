@@ -32,21 +32,43 @@ class Tester(
       Thread.sleep(rnd.nextInt(maxInterOpInterval))
 
       if (rnd.nextInt(readFraction) == 0) {
+        var anomaly = false
+        var arg = Client.INIT_VALUE;
         val sTime = System.nanoTime - t0
-        val arg = client.read(Client.KEY)
-        val eTime = System.nanoTime - t0
-        val op = new Operation(id, READ, sTime, eTime, arg)
-        opLst += op
-        //print(s"$op ")
+        try {
+          arg = client.read(Client.KEY)
+        } catch {
+          case e: Exception => anomaly = true
+        } finally {
+          val eTime = System.nanoTime - t0
+          val op = new Operation(id, READ, sTime, eTime, arg)
+          if (anomaly) {
+            op.anomalies += Checker.ANOMALY_FAILED
+            println("Read operation failed: " + op.toLongString)
+          }
+          opLst += op
+          //print(s"$op ")
+        }
       } else {
+        var anomaly = false
         val arg = MonotonicOracle.getNextMonotonicInt
         val sTime = System.nanoTime - t0
-        client.write(Client.KEY, arg)
-        val eTime = System.nanoTime - t0
-        val op = new Operation(id, WRITE, sTime, eTime, arg)
-        opLst += op
-        //print(s"$op ")
+        try {
+          client.write(Client.KEY, arg)
+        } catch {
+          case e: Exception => anomaly = true
+        } finally {
+          val eTime = System.nanoTime - t0
+          val op = new Operation(id, WRITE, sTime, eTime, arg)
+          if (anomaly) {
+            op.anomalies += Checker.ANOMALY_FAILED
+            println("Write operation failed: " + op.toLongString)
+          }
+          opLst += op
+          //print(s"$op ")
+        }
       }
+
     }
 
     client.terminate

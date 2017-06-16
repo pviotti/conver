@@ -6,6 +6,7 @@ import scalax.collection.edge.Implicits._
 import scala.collection.mutable.HashSet
 import conver.clients.Client
 import scalax.collection.edge.LkDiEdge
+import java.util.NoSuchElementException
 
 object Checker {
 
@@ -18,6 +19,7 @@ object Checker {
   // operation anomaly markers
   val ANOMALY_REGULAR = 'reg
   val ANOMALY_STALEREAD = 'stale
+  val ANOMALY_FAILED = 'failed
 
   // consistency semantics
   val LIN = 'lin
@@ -126,46 +128,46 @@ object Checker {
 
     for (op <- sortedOps) {
 
-      // add node and link to its rb-preceding
-      addNodeToGraph(g, op)
+        // add node and link to its rb-preceding
+        addNodeToGraph(g, op)
 
-      if (op is READ) {
+        if (op is READ) {
 
-        // add to graph all writes concurrent to this read
-        for (op1 <- sortedOps)
-          if ((op1 is WRITE) && areLinConcurrent(op, op1))
-            addNodeToGraph(g, op1)
+          // add to graph all writes concurrent to this read
+          for (op1 <- sortedOps)
+            if ((op1 is WRITE) && areLinConcurrent(op, op1))
+              addNodeToGraph(g, op1)
 
-        if (op.arg != Client.INIT_VALUE) { // read of initial value has no matching write
-          // find matched write
-          val matchedW = g.nodes.find(x => visCmp(x.value, op)).get
+          if (op.arg != Client.INIT_VALUE) { // read of initial value has no matching write
+            // find matched write
+            val matchedW = g.nodes.find(x => visCmp(x.value, op)).get
 
-          // matched write inherits read's rb edges
-          for (e <- g.get(op).incoming)
-            if (e.source.value != matchedW.value) {
-              //println(s"Inheriting ${e.source.value} -> ${matchedW.value}")
-              g += LkDiEdge(e.source.value, matchedW.value)(AR)
-            }
+            // matched write inherits read's rb edges
+            for (e <- g.get(op).incoming)
+              if (e.source.value != matchedW.value) {
+                //println(s"Inheriting ${e.source.value} -> ${matchedW.value}")
+                g += LkDiEdge(e.source.value, matchedW.value)(AR)
+              }
 
-          /* Refine response time of write matching the read.
+            /* Refine response time of write matching the read.
            * This allows to add further returns-before edges
            * and then spot possible cycles due to anomalies
            * that otherwise would go unnoticed (e.g. new-old inversion). */
-          if (op.eTimeX < matchedW.value.eTimeX) {
-            //println(s"Refining ${matchedW.value} to $op")
-            matchedW.value.eTimeX = op.eTimeX
+            if (op.eTimeX < matchedW.value.eTimeX) {
+              //println(s"Refining ${matchedW.value} to $op")
+              matchedW.value.eTimeX = op.eTimeX
+            }
+          }
+
+          // remove read from graph
+          g -= op
+
+          val (isLinear, anomalyType) = checkGraph(g, op)
+          if (!isLinear) {
+            op.anomalies += anomalyType
+            readAnomLst += op
           }
         }
-
-        // remove read from graph
-        g -= op
-
-        val (isLinear, anomalyType) = checkGraph(g, op)
-        if (!isLinear) {
-          op.anomalies += anomalyType
-          readAnomLst += op
-        }
-      }
     }
 
     // add arbitrary edges between writes that
@@ -218,7 +220,7 @@ object Checker {
     }
 
     assert(g.nodes.length == opLst.size)
-    assert(g.edges.length == (opLst.size * (opLst.size - 1) / 2))
+    //assert(g.edges.length == (opLst.size * (opLst.size - 1) / 2))
 
     if (!readAnomLst.isEmpty)
       (false, readAnomLst)
