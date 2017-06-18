@@ -29,15 +29,15 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
            |""".stripMargin)
 
   val database = opt[String](default = Some("lin"),
-                             short = 'd',
-                             descr = "Database (lin, reg, zk, antidote)")
+    short = 'd',
+    descr = "Database (lin, reg, zk, antidote)")
   val numServers =
     opt[Int](default = Some(3), short = 's', descr = "Number of servers")
   val numClients =
     opt[Int](default = Some(3), short = 'c', descr = "Number of clients")
   val meanNumOps = opt[Int](default = Some(10),
-                            short = 'o',
-                            descr = "Average number of operations per client")
+    short = 'o',
+    descr = "Average number of operations per client")
   val wan = opt[Boolean](descr = "Emulate WAN latencies")
 
   verify()
@@ -77,6 +77,7 @@ object Conver extends App {
       case "antidote" =>
         containerIds = AntidoteDBCluster.start(numServers)
         if (wan) AntidoteDBCluster.slowDownNetwork(containerIds)
+      case _ => ;
     }
 
     // setup clients
@@ -91,11 +92,11 @@ object Conver extends App {
         case "lin" => DummyLinClient
       }
       new Tester(id,
-                 meanNumOp,
-                 sigmaNumOp,
-                 maxInterOpInterval,
-                 readFraction,
-                 client)
+        meanNumOp,
+        sigmaNumOp,
+        maxInterOpInterval,
+        readFraction,
+        client)
     }
 
     // run execution
@@ -109,7 +110,8 @@ object Conver extends App {
 
     // check and draw execution
     try {
-      Checker.checkExecution(opLst)
+      val (_, res) = Checker.checkExecution(opLst)
+      printResults(res)
     } finally {
       Drawer.drawExecution(numClients, opLst, duration)
     }
@@ -128,5 +130,21 @@ object Conver extends App {
           AntidoteDBCluster.stop(containerIds)
         case _ => ;
       }
+  }
+
+  def printResults(res: Map[Symbol, Boolean]) = {
+    println(
+      "Linearizability............................" + printBool(res(Checker.LIN)) + "\n" +
+        "Regular...................................." + printBool(res(Checker.REG)) + "\n" +
+        "Sequential................................." + printBool(res(Checker.SEQ)) + "\n" +
+        "Causal....................................." + printBool(res(Checker.CAU)) + "\n" +
+        "Session causality (WFR)...................." + printBool(res(Checker.WFR)) + "\n" +
+        "Inter-Session Monotonicity (MR, MW)........" + printBool(res(Checker.MRW)) + "\n" +
+        "Intra-Session Monotonicity (RYW)..........." + printBool(res(Checker.RYW)))
+  }
+
+  def printBool(b: Boolean): String = b match {
+    case true => Console.GREEN + "[OK]" + Console.RESET
+    case false => Console.RED + "[KO]" + Console.RESET
   }
 }

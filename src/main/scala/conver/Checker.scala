@@ -102,31 +102,13 @@ object Checker {
     else readAnomLst.foreach(x => print(x + " "))
     println
 
-    println(
-      "Linearizability............................" + printBool(cons(LIN)))
-    println(
-      "Regular...................................." + printBool(cons(REG)))
-    println(
-      "Sequential................................." + printBool(cons(SEQ)))
-    println(
-      "Causal....................................." + printBool(cons(CAU)))
-    println(
-      "Session causality (WFR)...................." + printBool(cons(WFR)))
-    println(
-      "Inter-Session Monotonicity (MR, MW)........" + printBool(cons(MRW)))
-    println(
-      "Intra-Session Monotonicity (RYW)..........." + printBool(cons(RYW)))
-
     //if (cons(LIN)) assert(cons(REG))
     //if (cons(REG)) assert(cons(SEQ))
 
     (opLst, cons)
   }
 
-  def printBool(b: Boolean): String = b match {
-    case true => Console.GREEN + "[OK]" + Console.RESET
-    case false => Console.RED + "[KO]" + Console.RESET
-  }
+
 
   /**
     * Linearizability checker
