@@ -51,21 +51,12 @@ object Conver extends App {
   val numClients = conf.numClients()
   val meanNumOp = conf.meanNumOps()
   val wan = conf.wan()
+  val sigmaNumOp = 1
+  val maxInterOpInterval = 50
+  val readFraction = 2
   println(
     s"Started. Database: $database, servers: $numServers," +
       s"clients: $numClients, avg op/client: $meanNumOp, emulate WAN: $wan")
-
-  // start cluster
-  var containerIds = null: Array[String]
-  database match {
-    case "zk" =>
-      containerIds = ZkCluster.start(numServers)
-      if (wan) ZkCluster.slowDownNetwork(containerIds)
-    case "antidote" =>
-      containerIds = AntidoteDBCluster.start(numServers)
-      if (wan) AntidoteDBCluster.slowDownNetwork(containerIds)
-    case _ => ;
-  }
 
   // tweak the parallelism to execute futures (http://stackoverflow.com/a/15285441)
   implicit val ec = new ExecutionContext {
@@ -76,11 +67,19 @@ object Conver extends App {
     def shutdown() = threadPool.shutdown();
   }
 
+  var containerIds = null: Array[String]
   try {
-    // setup cluster, clients and testers
-    val sigmaNumOp = 1
-    val maxInterOpInterval = 50
-    val readFraction = 2
+    // start cluster
+    database match {
+      case "zk" =>
+        containerIds = ZkCluster.start(numServers)
+        if (wan) ZkCluster.slowDownNetwork(containerIds)
+      case "antidote" =>
+        containerIds = AntidoteDBCluster.start(numServers)
+        if (wan) AntidoteDBCluster.slowDownNetwork(containerIds)
+    }
+
+    // setup clients
     val testers = for (id <- 'a' to ('a' + numClients - 1).toChar) yield {
       var client: Client = database match {
         case "zk" =>
@@ -88,10 +87,8 @@ object Conver extends App {
         case "antidote" =>
           new AntidoteDBClient()
             .init(AntidoteDBCluster.getConnectionString(numServers))
-        case "reg" =>
-          DummyRegClient
-        case "lin" =>
-          DummyLinClient
+        case "reg" => DummyRegClient
+        case "lin" => DummyLinClient
       }
       new Tester(id,
                  meanNumOp,
@@ -113,23 +110,23 @@ object Conver extends App {
     // check and draw execution
     try {
       Checker.checkExecution(opLst)
-    } catch {
-      case e: Exception => e.printStackTrace
     } finally {
       Drawer.drawExecution(numClients, opLst, duration)
     }
+  } catch {
+    case e: Exception => e.printStackTrace
   } finally {
 
     ec.shutdown()
 
     // tear down cluster
-    database match {
-      case "zk" =>
-        ZkCluster.stop(containerIds)
-      case "antidote" =>
-        AntidoteDBCluster.stop(containerIds)
-      case _ => ;
-    }
-
+    if (containerIds != null)
+      database match {
+        case "zk" =>
+          ZkCluster.stop(containerIds)
+        case "antidote" =>
+          AntidoteDBCluster.stop(containerIds)
+        case _ => ;
+      }
   }
 }
