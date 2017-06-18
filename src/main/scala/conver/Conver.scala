@@ -38,7 +38,7 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
   val meanNumOps = opt[Int](default = Some(10),
     short = 'o',
     descr = "Average number of operations per client")
-  val wan = opt[Boolean](descr = "Emulate WAN latencies")
+  val wan = opt[Boolean](descr = "Emulate wide area network")
 
   verify()
 }

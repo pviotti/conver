@@ -108,8 +108,6 @@ object Checker {
     (opLst, cons)
   }
 
-
-
   /**
     * Linearizability checker
     * Implements an algorithm similar to that of

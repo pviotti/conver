@@ -22,7 +22,7 @@ object AntidoteDBCluster extends Cluster {
 
   // Bash script to call Erlang scripts that connects Antidote containers
   // as in https://github.com/mweberUKL/antidote_dev/tree/master/docker_dcs
-  val scriptLink = "#!/bin/bash \nsleep 10; \nescript /code/connect_dcs.erl"
+  val scriptLink = "#!/bin/bash \nsleep 8; \nescript /code/connect_dcs.erl"
 
   // Erlang script template to connect Antidote containers
   val scriptHeader =
