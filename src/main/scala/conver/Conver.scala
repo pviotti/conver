@@ -52,8 +52,8 @@ object Conver extends App {
   val meanNumOp = conf.meanNumOps()
   val wan = conf.wan()
   val sigmaNumOp = 1
-  val maxInterOpInterval = 50
-  val readFraction = 2
+  val maxInterOpInterval = if (wan) ZkCluster.meanDelay else 20
+  val readRatio = 50 // %
   println(
     s"Started. Database: $database, servers: $numServers," +
       s"clients: $numClients, avg op/client: $meanNumOp, emulate WAN: $wan")
@@ -95,7 +95,7 @@ object Conver extends App {
         meanNumOp,
         sigmaNumOp,
         maxInterOpInterval,
-        readFraction,
+        readRatio,
         client)
     }
 

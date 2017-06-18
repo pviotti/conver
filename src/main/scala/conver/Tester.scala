@@ -14,14 +14,14 @@ class Tester(val id: Char,
              val meanNumOp: Int,
              val sigmaNumOp: Int,
              val maxInterOpInterval: Int,
-             val readFraction: Int,
+             val readRatio: Int,
              val client: Client) {
 
-  private val seed: Long = System.nanoTime
-  private val rnd: Random = new Random(seed)
+  private val seed = System.nanoTime
+  private val rnd = new Random(seed)
 
-  private var numOp: Int = 0
-  private var opLst: ListBuffer[Operation] = new ListBuffer[Operation]
+  private var numOp = 0
+  private var opLst = new ListBuffer[Operation]
 
   def run(t0: Long): ListBuffer[Operation] = {
     numOp =
@@ -31,7 +31,7 @@ class Tester(val id: Char,
       // TODO better with exponential interarrival times?
       Thread.sleep(rnd.nextInt(maxInterOpInterval))
 
-      if (rnd.nextInt(readFraction) == 0) {
+      if (rnd.nextInt(100) <= readRatio) {
         var anomaly = false
         var arg = Client.INIT_VALUE;
         val sTime = System.nanoTime - t0
@@ -43,7 +43,7 @@ class Tester(val id: Char,
           val eTime = System.nanoTime - t0
           val op = new Operation(id, READ, sTime, eTime, arg)
           if (anomaly) {
-            op.anomalies += Checker.ANOMALY_FAILED
+            op.anomalies += Checker.ANOMALY_FAIL
             println("Read operation failed: " + op.toLongString)
           }
           opLst += op
@@ -61,7 +61,7 @@ class Tester(val id: Char,
           val eTime = System.nanoTime - t0
           val op = new Operation(id, WRITE, sTime, eTime, arg)
           if (anomaly) {
-            op.anomalies += Checker.ANOMALY_FAILED
+            op.anomalies += Checker.ANOMALY_FAIL
             println("Write operation failed: " + op.toLongString)
           }
           opLst += op

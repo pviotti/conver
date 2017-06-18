@@ -19,7 +19,7 @@ object Checker {
   // operation anomaly markers
   val ANOMALY_REGULAR = 'reg
   val ANOMALY_STALEREAD = 'stale
-  val ANOMALY_FAILED = 'failed
+  val ANOMALY_FAIL = 'fail
 
   // consistency semantics
   val LIN = 'lin
@@ -32,8 +32,7 @@ object Checker {
 
   // TODO break loops http://stackoverflow.com/questions/2742719/how-do-i-break-out-of-a-loop-in-scala
 
-  def checkExecution(opLst: ListBuffer[Operation])
-    : (ListBuffer[Operation], Map[Symbol, Boolean]) = {
+  def checkExecution(opLst: ListBuffer[Operation]): (ListBuffer[Operation], Map[Symbol, Boolean]) = {
 
     val g: Graph[Operation, LkDiEdge] = Graph()
     // XXX include initial ghost write
@@ -60,7 +59,7 @@ object Checker {
     cons += (MRW -> true)
     for ((w1, w2) <- eSo; (r1, r2) <- eSo)
       if ((w1.value is WRITE) && (w2.value is WRITE) && (r1.value is READ) && (r2.value is READ)
-          && eVis.contains(w1, r2) && eVis.contains(w2, r1))
+        && eVis.contains(w1, r2) && eVis.contains(w2, r1))
         cons += (MRW -> false)
 
     // Writes follow reads
@@ -75,7 +74,7 @@ object Checker {
     cons += (RYW -> true)
     for ((w0, w1) <- eSo; (w2, r0) <- eSo)
       if ((w2 == w1) && (w0.value is WRITE) && (w1.value is WRITE)
-          && eVis.contains(w0, r0))
+        && eVis.contains(w0, r0))
         cons += (RYW -> false)
 
     /* A certain total order of writes is respected across sessions.
@@ -83,8 +82,8 @@ object Checker {
     var isCrossSessionTotalOrder = true
     for ((r1, r2) <- eSo; (r3, r4) <- eSo) {
       if ((r1 is READ) && (r2 is READ) && (r3 is READ) && (r4 is READ)
-          && (r1.value.arg == r4.value.arg) && (r2.value.arg == r3.value.arg)
-          && (r1.value.arg != r2.value.arg) && (r3.value.arg != r4.value.arg)) {
+        && (r1.value.arg == r4.value.arg) && (r2.value.arg == r3.value.arg)
+        && (r1.value.arg != r2.value.arg) && (r3.value.arg != r4.value.arg)) {
         println(s"E-SO: ${r1.value} ${r2.value} ${r3.value} ${r4.value}")
         isCrossSessionTotalOrder = false
       }
@@ -109,17 +108,15 @@ object Checker {
   }
 
   /**
-    * Linearizability checker
-    * Implements an algorithm similar to that of
-    * Lu et al., SOSP '15
-    */
+   * Linearizability checker
+   * Implements an algorithm similar to the one by
+   * Lu et al., SOSP '15
+   */
   def checkLinearizability(g: Graph[Operation, LkDiEdge],
-                           opLst: ListBuffer[Operation]) = {
+    opLst: ListBuffer[Operation]) = {
 
     val readAnomLst = new ListBuffer[Operation]
-    val sortedOps = opLst.sortBy { x =>
-      x.sTime
-    }
+    val sortedOps = opLst.sortBy { x => x.sTime }
 
     for (op <- sortedOps) {
 
@@ -169,7 +166,7 @@ object Checker {
     // have not been ordered by interleaving reads
     for (n1 <- g.nodes; n2 <- g.nodes) {
       if (n1.findOutgoingTo(n2) == None &&
-          n2.findOutgoingTo(n1) == None)
+        n2.findOutgoingTo(n1) == None)
         if (n1.value.sTime < n2.value.sTime) {
           //println(s"Adding ${n1.value} ~> ${n2.value}")
           g += LkDiEdge(n1.value, n2.value)(AR)
@@ -231,7 +228,7 @@ object Checker {
   }
 
   def checkGraph(g: Graph[Operation, LkDiEdge],
-                 currentRead: Operation): (Boolean, Symbol) = {
+    currentRead: Operation): (Boolean, Symbol) = {
 
     if (!g.isAcyclic) {
 
@@ -270,10 +267,10 @@ object Checker {
   }
 
   /**
-    * Compare function for returns-before ordering
-    * based on adjustable operation end time
-    * used for graph-based linearizability checking.
-    */
+   * Compare function for returns-before ordering
+   * based on adjustable operation end time
+   * used for graph-based linearizability checking.
+   */
   def linRbCmp(op1: Operation, op2: Operation) =
     op1.eTimeX < op2.sTime
 
@@ -293,9 +290,9 @@ object Checker {
     (op1 is WRITE) && (op2 is READ) && op1.arg == op2.arg
 
   def addEdges(opLst: ListBuffer[Operation],
-               g: Graph[Operation, LkDiEdge],
-               cmpFun: (Operation, Operation) => Boolean,
-               label: Symbol) =
+    g: Graph[Operation, LkDiEdge],
+    cmpFun: (Operation, Operation) => Boolean,
+    label: Symbol) =
     for (op1 <- opLst; op2 <- opLst if cmpFun(op1, op2)) // n^2
       g += LkDiEdge(op1, op2)(label)
 

@@ -47,7 +47,7 @@ object Drawer {
         if (op.anomalies.isEmpty)
           ig2.drawRect(opX, lineY - opHeight, width, opHeight)
         else {
-          if (op.anomalies.contains(Checker.ANOMALY_FAILED))
+          if (op.anomalies.contains(Checker.ANOMALY_FAIL))
             ig2.setPaint(Color.GRAY)
           else if (op.anomalies.contains(Checker.ANOMALY_REGULAR))
             ig2.setPaint(Color.ORANGE)

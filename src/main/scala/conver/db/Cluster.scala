@@ -14,11 +14,11 @@ abstract class Cluster {
   val iptablesDockerImage = "vimagick/iptables:latest"
 
   // netem paramters ( https://wiki.linuxfoundation.org/networking/netem )
-  val meanDelay = 100  // ms - mean delay
-  val varDelay = 20    // ms - random delay variation
-  val corrupt = 2      // %  - packet corruption
-  val loss = 5         // %  - packet loss
-  val dup = 2          // %  - packet duplication
+  val meanDelay = 100 // ms - mean delay
+  val varDelay = 20 // ms - random delay variation
+  val corrupt = 2 // %  - packet corruption
+  val loss = 5 // %  - packet loss
+  val dup = 2 // %  - packet duplication
 
   def start(num: Int): Array[String]
 
@@ -79,8 +79,8 @@ abstract class Cluster {
       val cb2 = new StringContainerResultCallback()
       val iptableContainer = docker
         .createContainerCmd(iptablesDockerImage)
-        .withCmd("tc", "qdisc", "replace", "dev", ifh, "root", "netem", 
-            "delay", s"${meanDelay}ms", s"${varDelay}ms", "distribution", "normal",
+        .withCmd("tc", "qdisc", "replace", "dev", ifh, "root", "netem",
+          "delay", s"${meanDelay}ms", s"${varDelay}ms", "distribution", "normal",
           "corrupt", s"${corrupt}%", "loss", s"${loss}%", "duplicate", s"${dup}%")
         .withNetworkMode("host") // to see other containers' devices
         .withPrivileged(true)

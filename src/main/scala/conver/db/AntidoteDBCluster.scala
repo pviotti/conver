@@ -109,10 +109,12 @@ object AntidoteDBCluster extends Cluster {
       PosixFilePermissions.asFileAttribute(
         PosixFilePermissions.fromString("rwxr-xr-x")))
 
+    // write shell script file
     var writer = Files.newBufferedWriter(tmpScriptFile)
     writer.write(scriptLink)
     writer.close()
 
+    // write Erlang script file
     writer = Files.newBufferedWriter(tmpEscriptFile)
     writer.write(scriptHeader)
     for (i <- 1 to num)
