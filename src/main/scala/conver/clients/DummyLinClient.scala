@@ -4,8 +4,8 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.util.Random
 
 /**
- * Dummy client that emulates a linearizable data store.
- */
+  * Dummy client that emulates a linearizable data store.
+  */
 object DummyLinClient extends Client {
 
   private val hashMap = new ConcurrentHashMap[String, Int]

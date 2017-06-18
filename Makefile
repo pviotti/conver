@@ -9,3 +9,6 @@ clean:
 	
 eclipse:
 	sbt eclipse
+
+fmt:
+	sbt scalafmt test:scalafmt sbt:scalafmt

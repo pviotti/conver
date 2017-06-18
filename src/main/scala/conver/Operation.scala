@@ -2,19 +2,18 @@ package conver
 
 import scala.collection.mutable.HashSet
 
-class Operation(
-    val proc: Char,
-    val opType: OpType,
-    val sTime: Long,
-    val eTime: Long,
-    val arg: Int) {
+class Operation(val proc: Char,
+                val opType: OpType,
+                val sTime: Long,
+                val eTime: Long,
+                val arg: Int) {
 
   lazy val latency = eTime - sTime
   /* eTimeX: mutable operation end time,
    * used to perform graph-based consistency checks */
   var eTimeX = eTime
   val anomalies = new HashSet[Symbol]
-  
+
   def is(opt: OpType) = this.opType == opt
 
   override def toString = proc + ":" + opType + ":" + arg

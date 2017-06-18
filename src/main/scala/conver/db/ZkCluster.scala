@@ -13,7 +13,7 @@ object ZkCluster extends Cluster {
     // or containers are already there
     //val info = docker.infoCmd().exec()
     //println(docker.infoCmd().exec())
-    
+
     pullDockerImage(zkDockerImage)
 
     var containers = Array.ofDim[String](num)
@@ -27,7 +27,8 @@ object ZkCluster extends Cluster {
     val servers = sb.toString
 
     for (i <- 1 to num) {
-      val container = docker.createContainerCmd(zkDockerImage)
+      val container = docker
+        .createContainerCmd(zkDockerImage)
         .withName("zookeeper" + i)
         .withHostName("zookeeper" + i)
         .withEnv("MYID=" + i, servers)
@@ -35,7 +36,8 @@ object ZkCluster extends Cluster {
         .exec()
       docker.startContainerCmd(container.getId).exec()
 
-      val netInfo = docker.inspectNetworkCmd().withNetworkId(network.getId).exec()
+      val netInfo =
+        docker.inspectNetworkCmd().withNetworkId(network.getId).exec()
       val ipAddr = netInfo.getContainers.get(container.getId).getIpv4Address
       println("Server zk" + i + " started: " + ipAddr)
 

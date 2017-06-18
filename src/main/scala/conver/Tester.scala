@@ -10,13 +10,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.HashSet
 
-class Tester(
-    val id: Char,
-    val meanNumOp: Int,
-    val sigmaNumOp: Int,
-    val maxInterOpInterval: Int,
-    val readFraction: Int,
-    val client: Client) {
+class Tester(val id: Char,
+             val meanNumOp: Int,
+             val sigmaNumOp: Int,
+             val maxInterOpInterval: Int,
+             val readFraction: Int,
+             val client: Client) {
 
   private val seed: Long = System.nanoTime
   private val rnd: Random = new Random(seed)
@@ -25,7 +24,8 @@ class Tester(
   private var opLst: ListBuffer[Operation] = new ListBuffer[Operation]
 
   def run(t0: Long): ListBuffer[Operation] = {
-    numOp = Math.floor(rnd.nextGaussian * sigmaNumOp + meanNumOp).asInstanceOf[Int]
+    numOp =
+      Math.floor(rnd.nextGaussian * sigmaNumOp + meanNumOp).asInstanceOf[Int]
 
     for (i <- 1 to numOp) {
       // TODO better with exponential interarrival times?

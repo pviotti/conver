@@ -19,34 +19,41 @@ import conver.db.AntidoteDBCluster
 import conver.db.Cluster
 import org.rogach.scallop._
 
-
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
-  
-  banner("""Usage: conver [OPTIONS]
+
+  banner(
+    """Usage: conver [OPTIONS]
            |Conver spawns clusters of databases and perform concurrent read and write operations. 
            |At the end of each execution, it verify that some consistency semantics were respected.
            |Options:
            |""".stripMargin)
-           
-  val database = opt[String](default = Some("lin"), descr="Database (lin, reg, zk, antidote)")
-  val numServers = opt[Int](default = Some(3), short='s', descr="Number of servers")
-  val numClients = opt[Int](default = Some(3), short='c', descr="Number of clients")
-  val meanNumOps = opt[Int](default = Some(10), short='o', descr="Average number of operations per client")
-  val wan = opt[Boolean](descr="Emulate WAN latencies")
-  
+
+  val database = opt[String](default = Some("lin"),
+                             short = 'd',
+                             descr = "Database (lin, reg, zk, antidote)")
+  val numServers =
+    opt[Int](default = Some(3), short = 's', descr = "Number of servers")
+  val numClients =
+    opt[Int](default = Some(3), short = 'c', descr = "Number of clients")
+  val meanNumOps = opt[Int](default = Some(10),
+                            short = 'o',
+                            descr = "Average number of operations per client")
+  val wan = opt[Boolean](descr = "Emulate WAN latencies")
+
   verify()
 }
 
 object Conver extends App {
-  
+
   val conf = new Conf(args)
   val database = conf.database()
   val numServers = conf.numServers()
   val numClients = conf.numClients()
   val meanNumOp = conf.meanNumOps()
   val wan = conf.wan()
-  println(s"Started. Database: $database, servers: $numServers," +  
-        s"clients: $numClients, avg op/client: $meanNumOp, emulate WAN: $wan")
+  println(
+    s"Started. Database: $database, servers: $numServers," +
+      s"clients: $numClients, avg op/client: $meanNumOp, emulate WAN: $wan")
 
   // start cluster
   var containerIds = null: Array[String]
@@ -64,27 +71,34 @@ object Conver extends App {
   implicit val ec = new ExecutionContext {
     val threadPool = Executors.newFixedThreadPool(numClients * 2);
     override def reportFailure(cause: Throwable): Unit = {};
-    override def execute(runnable: Runnable): Unit = threadPool.submit(runnable);
+    override def execute(runnable: Runnable): Unit =
+      threadPool.submit(runnable);
     def shutdown() = threadPool.shutdown();
   }
 
   try {
     // setup cluster, clients and testers
-    val sigmaNumOp: Int = 1
-    val maxInterOpInterval: Int = 50
-    val readFraction: Int = 2
+    val sigmaNumOp = 1
+    val maxInterOpInterval = 50
+    val readFraction = 2
     val testers = for (id <- 'a' to ('a' + numClients - 1).toChar) yield {
       var client: Client = database match {
         case "zk" =>
           new ZkClient().init(ZkCluster.getConnectionString(containerIds))
         case "antidote" =>
-          new AntidoteDBClient().init(AntidoteDBCluster.getConnectionString(numServers))
+          new AntidoteDBClient()
+            .init(AntidoteDBCluster.getConnectionString(numServers))
         case "reg" =>
           DummyRegClient
         case "lin" =>
           DummyLinClient
       }
-      new Tester(id, meanNumOp, sigmaNumOp, maxInterOpInterval, readFraction, client)
+      new Tester(id,
+                 meanNumOp,
+                 sigmaNumOp,
+                 maxInterOpInterval,
+                 readFraction,
+                 client)
     }
 
     // run execution

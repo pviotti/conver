@@ -12,11 +12,10 @@ import java.awt.geom.Rectangle2D
 
 object Drawer {
 
-  def drawExecution(
-    nClients: Int,
-    opLst: ListBuffer[Operation],
-    duration: Long,
-    fileName: String = "exec.png"): Unit = {
+  def drawExecution(nClients: Int,
+                    opLst: ListBuffer[Operation],
+                    duration: Long,
+                    fileName: String = "exec.png"): Unit = {
 
     val sessions: ListMap[Char, ListBuffer[Operation]] =
       ListMap(opLst.groupBy(x => x.proc).toSeq.sortBy(_._1): _*) // sort sessions' hashmap by ClientId
@@ -33,7 +32,8 @@ object Drawer {
     ig2.fillRect(0, 0, w, h)
     ig2.setPaint(Color.BLACK)
 
-    val fnScaleTime = (x: Long) => ((lineLength * x) / duration + hMargin).toInt
+    val fnScaleTime = (x: Long) =>
+      ((lineLength * x) / duration + hMargin).toInt
 
     for (((cId, session), i) <- sessions.zipWithIndex) {
 
@@ -53,7 +53,8 @@ object Drawer {
             ig2.setPaint(Color.ORANGE)
           else
             ig2.setPaint(Color.decode("#C95D38"))
-          ig2.fill(new Rectangle2D.Double(opX, lineY - opHeight, width, opHeight))
+          ig2.fill(
+            new Rectangle2D.Double(opX, lineY - opHeight, width, opHeight))
           ig2.setPaint(Color.BLACK)
         }
         ig2.drawString(op.toLabelString, opX, lineY + txtHeight)

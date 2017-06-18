@@ -10,9 +10,9 @@ import java.util.LinkedList
 import scala.collection.mutable.LinkedHashSet
 
 /**
- * Dummy client that emulates a data store
- * implementing regular register semantics.
- */
+  * Dummy client that emulates a data store
+  * implementing regular register semantics.
+  */
 object DummyRegClient extends Client {
 
   private val hashMap = new ConcurrentHashMap[String, Int]
@@ -30,15 +30,16 @@ object DummyRegClient extends Client {
   override def read(key: String) = {
     Thread.sleep(rnd.nextInt(maxLatency / 2))
     val current = hashMap.get(key)
-    val ret = if (concWriters.get == 0)
-      current
-    else {
-      val legalWrites = new LinkedList[Int](concVals)
-      if (!legalWrites.contains(current))
-        legalWrites.add(current)
-      print(s"(conc: $legalWrites) ")
-      legalWrites.get(rnd.nextInt(legalWrites.size))
-    }
+    val ret =
+      if (concWriters.get == 0)
+        current
+      else {
+        val legalWrites = new LinkedList[Int](concVals)
+        if (!legalWrites.contains(current))
+          legalWrites.add(current)
+        print(s"(conc: $legalWrites) ")
+        legalWrites.get(rnd.nextInt(legalWrites.size))
+      }
     Thread.sleep(rnd.nextInt(maxLatency / 2))
     ret
   }

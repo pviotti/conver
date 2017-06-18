@@ -19,29 +19,34 @@ object AntidoteDBCluster extends Cluster {
 
   val antidoteDockerImage = "mweber/antidotedb:latest"
   val erlangDockerImage = "erlang:19-slim"
-  
+
   // Bash script to call Erlang scripts that connects Antidote containers
   // as in https://github.com/mweberUKL/antidote_dev/tree/master/docker_dcs
   val scriptLink = "#!/bin/bash \nsleep 10; \nescript /code/connect_dcs.erl"
 
   // Erlang script template to connect Antidote containers
-  val scriptHeader = "#!/usr/bin/env escript \n%%! -smp enable -sname erlshell -setcookie antidote \nmain(_Args) -> \n"
-  val scriptStartInterDcMgr = "\trpc:call(antidote@antidoteID, inter_dc_manager, start_bg_processes, [stable]),\n"
-  val scriptGetInterDcMgrDescr = "\t{ok, DescID} = rpc:call(antidote@antidoteID, inter_dc_manager, get_descriptor, []),\n"
-  val scriptSyncInterDcMgr = "\trpc:call(antidote@antidoteID, inter_dc_manager, observe_dcs_sync, [Descriptors]),\n"
+  val scriptHeader =
+    "#!/usr/bin/env escript \n%%! -smp enable -sname erlshell -setcookie antidote \nmain(_Args) -> \n"
+  val scriptStartInterDcMgr =
+    "\trpc:call(antidote@antidoteID, inter_dc_manager, start_bg_processes, [stable]),\n"
+  val scriptGetInterDcMgrDescr =
+    "\t{ok, DescID} = rpc:call(antidote@antidoteID, inter_dc_manager, get_descriptor, []),\n"
+  val scriptSyncInterDcMgr =
+    "\trpc:call(antidote@antidoteID, inter_dc_manager, observe_dcs_sync, [Descriptors]),\n"
 
   def start(num: Int): Array[String] = {
 
     // TODO check and handle ConflictException in case network
     // or containers are already there
-    
+
     pullDockerImage(antidoteDockerImage)
     pullDockerImage(erlangDockerImage)
 
     var containers = Array.ofDim[String](num)
 
     for (i <- 1 to num) {
-      val container = docker.createContainerCmd(antidoteDockerImage)
+      val container = docker
+        .createContainerCmd(antidoteDockerImage)
         .withName("antidote" + i)
         .withHostName("antidote" + i)
         .withEnv("NODE_NAME=antidote@antidote" + i, "SHORT_NAME=true")
@@ -59,7 +64,8 @@ object AntidoteDBCluster extends Cluster {
     val lstLinks = new LinkedList[Link]
     for (i <- 1 to num)
       lstLinks.add(new Link("antidote" + i, "antidote" + i + "link"))
-    val linkContainer = docker.createContainerCmd(erlangDockerImage)
+    val linkContainer = docker
+      .createContainerCmd(erlangDockerImage)
       .withName("link")
       .withHostName("link")
       .withBinds(new Bind(scriptDir.toString, new Volume("/code")))
@@ -67,10 +73,14 @@ object AntidoteDBCluster extends Cluster {
       .withCmd("/code/link.sh")
       .exec()
     docker.startContainerCmd(linkContainer.getId()).exec()
-    docker.attachContainerCmd(linkContainer.getId)
-      .withStdErr(true).withStdOut(true)
-      .withFollowStream(true).withLogs(true)
-      .exec(cb).awaitCompletion()
+    docker
+      .attachContainerCmd(linkContainer.getId)
+      .withStdErr(true)
+      .withStdOut(true)
+      .withFollowStream(true)
+      .withLogs(true)
+      .exec(cb)
+      .awaitCompletion()
     println(cb.toString())
     docker.removeContainerCmd(linkContainer.getId).exec()
     Files.deleteIfExists(tmpScriptFile)
@@ -90,10 +100,14 @@ object AntidoteDBCluster extends Cluster {
 
   private def createScriptFiles(num: Int) = {
     val tmpDir = Files.createTempDirectory(null)
-    val tmpScriptFile = Files.createFile(Paths.get(tmpDir.toString(), "link.sh"),
-      PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-xr-x")))
-    val tmpEscriptFile = Files.createFile(Paths.get(tmpDir.toString(), "connect_dcs.erl"),
-      PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-xr-x")))
+    val tmpScriptFile = Files.createFile(
+      Paths.get(tmpDir.toString(), "link.sh"),
+      PosixFilePermissions.asFileAttribute(
+        PosixFilePermissions.fromString("rwxr-xr-x")))
+    val tmpEscriptFile = Files.createFile(
+      Paths.get(tmpDir.toString(), "connect_dcs.erl"),
+      PosixFilePermissions.asFileAttribute(
+        PosixFilePermissions.fromString("rwxr-xr-x")))
 
     var writer = Files.newBufferedWriter(tmpScriptFile)
     writer.write(scriptLink)
