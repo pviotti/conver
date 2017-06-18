@@ -11,6 +11,7 @@ EclipseKeys.withJavadoc := true
 libraryDependencies += "org.scala-graph" %% "graph-core" % "1.11.5"
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.3"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.3" % "test"
+libraryDependencies += "org.rogach" %% "scallop" % "3.0.1"
 
 libraryDependencies += "com.github.docker-java" % "docker-java" % "3.0.10" exclude("org.slf4j", "slf4j-log4j12") 
 

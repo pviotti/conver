@@ -17,46 +17,50 @@ import conver.clients.AntidoteDBClient
 import conver.clients.AntidoteDBClient
 import conver.db.AntidoteDBCluster
 import conver.db.Cluster
+import org.rogach.scallop._
+
+
+class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
+  
+  banner("""Usage: conver [OPTIONS]
+           |Conver spawns clusters of databases and perform concurrent read and write operations. 
+           |At the end of each execution, it verify that some consistency semantics were respected.
+           |Options:
+           |""".stripMargin)
+           
+  val database = opt[String](default = Some("lin"), descr="Database (lin, reg, zk, antidote)")
+  val numServers = opt[Int](default = Some(3), short='s', descr="Number of servers")
+  val numClients = opt[Int](default = Some(3), short='c', descr="Number of clients")
+  val meanNumOps = opt[Int](default = Some(10), short='o', descr="Average number of operations per client")
+  val wan = opt[Boolean](descr="Emulate WAN latencies")
+  
+  verify()
+}
 
 object Conver extends App {
   
-  // argument parsing
-  type OptionMap = Map[Symbol, Any]
-
-  def getArgumentsMap(map: OptionMap, list: List[String]): OptionMap = {
-    list match {
-      case Nil => map
-      case "-c" :: value :: tail =>
-        getArgumentsMap(map ++ Map('client -> value), tail)
-      case "-n" :: value :: tail =>
-        getArgumentsMap(map ++ Map('num -> value.toInt), tail)
-      case "-o" :: value :: tail =>
-        getArgumentsMap(map ++ Map('op -> value.toInt), tail)
-      case option :: tail =>
-        println("Unknown option " + option); sys.exit(1)
-    }
-  }
-  val options = getArgumentsMap(Map(), args.toList)
-  val clientType = options.getOrElse('client, "lin")
-  val numClients = options.getOrElse('num, 3).asInstanceOf[Int]
-  val meanNumOp: Int = options.getOrElse('op, 5).asInstanceOf[Int]
-  val clusterSize = 3
-  println(s"Started. Database: $clientType, n. clients: $numClients, avg op/client: $meanNumOp")
+  val conf = new Conf(args)
+  val database = conf.database()
+  val numServers = conf.numServers()
+  val numClients = conf.numClients()
+  val meanNumOp = conf.meanNumOps()
+  val wan = conf.wan()
+  println(s"Started. Database: $database, servers: $numServers," +  
+        s"clients: $numClients, avg op/client: $meanNumOp, emulate WAN: $wan")
 
   // start cluster
   var containerIds = null: Array[String]
-  clientType match {
+  database match {
     case "zk" =>
-      containerIds = ZkCluster.start(clusterSize)
-      ZkCluster.slowDownNetwork(containerIds)
+      containerIds = ZkCluster.start(numServers)
+      if (wan) ZkCluster.slowDownNetwork(containerIds)
     case "antidote" =>
-      containerIds = AntidoteDBCluster.start(clusterSize)
-      AntidoteDBCluster.slowDownNetwork(containerIds)
+      containerIds = AntidoteDBCluster.start(numServers)
+      if (wan) AntidoteDBCluster.slowDownNetwork(containerIds)
     case _ => ;
   }
 
-  // tweak the parallelism to execute futures
-  // http://stackoverflow.com/a/15285441
+  // tweak the parallelism to execute futures (http://stackoverflow.com/a/15285441)
   implicit val ec = new ExecutionContext {
     val threadPool = Executors.newFixedThreadPool(numClients * 2);
     override def reportFailure(cause: Throwable): Unit = {};
@@ -70,11 +74,11 @@ object Conver extends App {
     val maxInterOpInterval: Int = 50
     val readFraction: Int = 2
     val testers = for (id <- 'a' to ('a' + numClients - 1).toChar) yield {
-      var client: Client = clientType match {
+      var client: Client = database match {
         case "zk" =>
           new ZkClient().init(ZkCluster.getConnectionString(containerIds))
         case "antidote" =>
-          new AntidoteDBClient().init(AntidoteDBCluster.getConnectionString(clusterSize))
+          new AntidoteDBClient().init(AntidoteDBCluster.getConnectionString(numServers))
         case "reg" =>
           DummyRegClient
         case "lin" =>
@@ -90,8 +94,7 @@ object Conver extends App {
     for (t <- testers) futures += Future(t.run(sTime))
     for (f <- futures) opLst ++= Await.result(f, Duration.Inf)
     val duration = System.nanoTime - sTime
-    //println("\nResults:")
-    //opLst.foreach(x => println(x.toLongString))
+    //println("\nResults:"); opLst.foreach(x => println(x.toLongString))
 
     // check and draw execution
     try {
@@ -106,7 +109,7 @@ object Conver extends App {
     ec.shutdown()
 
     // tear down cluster
-    clientType match {
+    database match {
       case "zk" =>
         ZkCluster.stop(containerIds)
       case "antidote" =>
