@@ -14,8 +14,9 @@ import com.github.dockerjava.core.command.ExecStartResultCallback
 import com.github.dockerjava.api.model.PortBinding
 import com.github.dockerjava.api.model.Volume
 import java.util.LinkedList
+import com.typesafe.scalalogging.LazyLogging
 
-object AntidoteDBCluster extends Cluster {
+object AntidoteDBCluster extends Cluster with LazyLogging {
 
   val antidoteDockerImage = "mweber/antidotedb:latest"
   val erlangDockerImage = "erlang:19-slim"
@@ -53,7 +54,7 @@ object AntidoteDBCluster extends Cluster {
         .withPortBindings(PortBinding.parse((8086 + i).toString + ":8087"))
         .exec()
       docker.startContainerCmd(container.getId).exec()
-      println("Server antidote" + i + " started")
+      logger.info("Server antidote" + i + " started")
 
       containers(i - 1) = container.getId
     }
@@ -81,7 +82,7 @@ object AntidoteDBCluster extends Cluster {
       .withLogs(true)
       .exec(cb)
       .awaitCompletion()
-    println(cb.toString())
+    logger.info(cb.toString())
     docker.removeContainerCmd(linkContainer.getId).exec()
     Files.deleteIfExists(tmpScriptFile)
     Files.deleteIfExists(tmpEscriptFile)

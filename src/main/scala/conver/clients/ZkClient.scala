@@ -10,16 +10,17 @@ import org.apache.zookeeper.WatchedEvent
 import org.apache.zookeeper.Watcher.Event.KeeperState
 import java.util.concurrent.CountDownLatch
 import java.nio.BufferUnderflowException
+import com.typesafe.scalalogging.LazyLogging
 
-class ZkClient extends Client {
+class ZkClient extends Client with LazyLogging {
 
   var zk = null: ZooKeeper
 
-  val tstPath = "/test"
+  val KEY = "/test"
 
   def init(connStr: String) = {
     try {
-      println("Client connecting to " + connStr)
+      logger.info("Client connecting to " + connStr)
       val connSignal = new CountDownLatch(1)
       zk = new ZooKeeper(connStr, 3000, new Watcher() {
         def process(we: WatchedEvent) = {
@@ -28,7 +29,7 @@ class ZkClient extends Client {
         }
       })
       connSignal.await()
-      zk.create(tstPath,
+      zk.create(KEY,
                 ByteBuffer.allocate(32).putInt(Client.INIT_VALUE).array(),
                 Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT)
@@ -41,7 +42,7 @@ class ZkClient extends Client {
 
   def read(key: String) = {
     try {
-      ByteBuffer.wrap(zk.getData(tstPath, false, null)).getInt
+      ByteBuffer.wrap(zk.getData(KEY, false, null)).getInt
     } catch {
       case e: BufferUnderflowException => -1
       case e: Exception => throw e
@@ -49,10 +50,10 @@ class ZkClient extends Client {
   }
 
   def write(key: String, value: Int) =
-    zk.setData(tstPath, ByteBuffer.allocate(32).putInt(value).array(), -1)
+    zk.setData(KEY, ByteBuffer.allocate(32).putInt(value).array(), -1)
 
   def delete(key: String) =
-    zk.delete(tstPath, -1)
+    zk.delete(KEY, -1)
 
   def terminate =
     zk.close()

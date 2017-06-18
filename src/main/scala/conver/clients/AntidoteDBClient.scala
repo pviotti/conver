@@ -7,22 +7,23 @@ import eu.antidotedb.client.SetRef
 import eu.antidotedb.client.CounterRef
 import eu.antidotedb.client.IntegerRef
 import scala.util.Random
+import com.typesafe.scalalogging.LazyLogging
 
-class AntidoteDBClient extends Client {
+class AntidoteDBClient extends Client with LazyLogging {
 
   var adb = null: AntidoteClient
   var intRef = null: IntegerRef
 
   val tstBucket = "tstBucket"
-  val tstInt = "tstInt"
+  val KEY = "tstInt"
 
   def init(connStr: String) = {
     try {
       val port = Random.shuffle(connStr.split(",").toList).head
-      println("Client connecting to 127.0.0.1:" + port)
+      logger.info("Client connecting to 127.0.0.1:" + port)
       adb = new AntidoteClient(new Host("127.0.0.1", port.toInt))
       val bucket: Bucket[String] = Bucket.create("tstBucket");
-      intRef = bucket.integer("tstInt")
+      intRef = bucket.integer(KEY)
       intRef.set(adb.noTransaction(), Client.INIT_VALUE)
     } catch {
       case e: Exception => throw e
@@ -32,7 +33,7 @@ class AntidoteDBClient extends Client {
 
   def read(key: String) = {
     try {
-      // println("Reading " + key)
+      // logger.debug("Reading " + key)
       intRef.read(adb.noTransaction()).toInt
     } catch {
       case e: Exception => throw e
@@ -41,7 +42,7 @@ class AntidoteDBClient extends Client {
 
   def write(key: String, value: Int) = {
     try {
-      // println("Writing " + value)
+      // logger.debug("Writing " + value)
       intRef.set(adb.noTransaction(), value)
     } catch {
       case e: Exception => throw e

@@ -9,23 +9,24 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.HashSet
+import com.typesafe.scalalogging.LazyLogging
 
 class Tester(val id: Char,
-             val meanNumOp: Int,
-             val sigmaNumOp: Int,
-             val maxInterOpInterval: Int,
-             val readRatio: Int,
-             val client: Client) {
+    val meanNumOp: Int,
+    val sigmaNumOp: Int,
+    val maxInterOpInterval: Int,
+    val readRatio: Int,
+    val client: Client) extends LazyLogging {
 
   private val seed = System.nanoTime
   private val rnd = new Random(seed)
 
   private var numOp = 0
-  private var opLst = new ListBuffer[Operation]
+  private var opLst: ListBuffer[Operation] = null
 
   def run(t0: Long): ListBuffer[Operation] = {
-    numOp =
-      Math.floor(rnd.nextGaussian * sigmaNumOp + meanNumOp).asInstanceOf[Int]
+    numOp = Math.floor(rnd.nextGaussian * sigmaNumOp + meanNumOp).asInstanceOf[Int]
+    opLst = new ListBuffer[Operation]
 
     for (i <- 1 to numOp) {
       // TODO better with exponential interarrival times?
@@ -44,7 +45,7 @@ class Tester(val id: Char,
           val op = new Operation(id, READ, sTime, eTime, arg)
           if (anomaly) {
             op.anomalies += Checker.ANOMALY_FAIL
-            println("Read operation failed: " + op.toLongString)
+            logger.debug("Read operation failed: " + op.toLongString)
           }
           opLst += op
           //print(s"$op ")
@@ -62,7 +63,7 @@ class Tester(val id: Char,
           val op = new Operation(id, WRITE, sTime, eTime, arg)
           if (anomaly) {
             op.anomalies += Checker.ANOMALY_FAIL
-            println("Write operation failed: " + op.toLongString)
+            logger.debug("Write operation failed: " + op.toLongString)
           }
           opLst += op
           //print(s"$op ")
@@ -80,6 +81,7 @@ class Tester(val id: Char,
 object MonotonicOracle {
   private var atomicInt = new AtomicInteger(Client.INIT_VALUE + 1)
 
+  def reset = atomicInt.set(Client.INIT_VALUE + 1)
   def getNextMonotonicInt: Int =
     atomicInt.getAndIncrement // returns the previous value
 }

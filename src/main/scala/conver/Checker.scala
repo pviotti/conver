@@ -7,8 +7,9 @@ import scala.collection.mutable.HashSet
 import conver.clients.Client
 import scalax.collection.edge.LkDiEdge
 import java.util.NoSuchElementException
+import com.typesafe.scalalogging.LazyLogging
 
-object Checker {
+object Checker extends LazyLogging {
 
   // edge markers
   val AR = 'ar /* arbitration order */
@@ -40,9 +41,7 @@ object Checker {
 
     val (isLinearizable, readAnomLst) = checkLinearizability(g, opLst)
     cons += (LIN -> isLinearizable)
-    cons += (REG -> readAnomLst
-      .find(op => op.anomalies.contains(ANOMALY_STALEREAD))
-      .isEmpty)
+    cons += (REG -> readAnomLst.find(op => op.anomalies.contains(ANOMALY_STALEREAD)).isEmpty)
 
     addEdges(opLst, g, rbCmp, RB)
     addEdges(opLst, g, soCmp, SO)
@@ -84,22 +83,19 @@ object Checker {
       if ((r1 is READ) && (r2 is READ) && (r3 is READ) && (r4 is READ)
         && (r1.value.arg == r4.value.arg) && (r2.value.arg == r3.value.arg)
         && (r1.value.arg != r2.value.arg) && (r3.value.arg != r4.value.arg)) {
-        println(s"E-SO: ${r1.value} ${r2.value} ${r3.value} ${r4.value}")
+        logger.debug(s"E-SO: ${r1.value} ${r2.value} ${r3.value} ${r4.value}")
         isCrossSessionTotalOrder = false
       }
     }
 
     cons += (CAU -> (cons(RYW) && cons(WFR) && cons(MRW)))
     cons += (SEQ -> (cons(CAU) && isCrossSessionTotalOrder))
-
-    print("Total order (tentative): ")
-    g.nodes.toSeq.sortBy(x => -x.outDegree).foreach(x => print(x + " "));
-    println
-
-    print("Anomalies: ")
-    if (readAnomLst.isEmpty) print("[none]")
-    else readAnomLst.foreach(x => print(x + " "))
-    println
+    
+    var toStr, anStr = ""
+    g.nodes.toSeq.sortBy(x => -x.outDegree).foreach(toStr += _ + " ")
+    readAnomLst.foreach(anStr += _ + " ")
+    logger.debug("Total order (tentative): " + toStr) 
+    logger.debug("Anomalies: " +  (if (readAnomLst.isEmpty) "[none]" else anStr))
 
     //if (cons(LIN)) assert(cons(REG))
     //if (cons(REG)) assert(cons(SEQ))
@@ -131,12 +127,14 @@ object Checker {
             addNodeToGraph(g, op1)
 
         // find matched write
+        try {
         val matchedW = g.nodes.find(x => visCmp(x.value, op)).get
+        
 
         // matched write inherits read's rb edges
         for (e <- g.get(op).incoming)
           if (e.source.value != matchedW.value) {
-            //println(s"Inheriting ${e.source.value} -> ${matchedW.value}")
+            //logger.debug(s"Inheriting ${e.source.value} -> ${matchedW.value}")
             g += LkDiEdge(e.source.value, matchedW.value)(AR)
           }
 
@@ -145,10 +143,13 @@ object Checker {
            * and then spot possible cycles due to anomalies
            * that otherwise would go unnoticed (e.g. new-old inversion). */
         if (op.eTimeX < matchedW.value.eTimeX) {
-          //println(s"Refining ${matchedW.value} to $op")
+          //logger.debug(s"Refining ${matchedW.value} to $op")
           matchedW.value.eTimeX = op.eTimeX
         }
 
+        } catch {
+          case e: Exception => logger.error("EXC: " + op.toString)
+        }
         // remove read from graph
         g -= op
 
@@ -166,7 +167,7 @@ object Checker {
       if (n1.findOutgoingTo(n2) == None &&
         n2.findOutgoingTo(n1) == None)
         if (n1.value.sTime < n2.value.sTime) {
-          //println(s"Adding ${n1.value} ~> ${n2.value}")
+          //logger.debug(s"Adding ${n1.value} ~> ${n2.value}")
           g += LkDiEdge(n1.value, n2.value)(AR)
         }
     }
@@ -238,7 +239,7 @@ object Checker {
 
       val c = g.findCycle.getOrElse(
         throw new IllegalStateException("No cycles found"))
-      println(s"$c")
+      logger.debug(s"$c")
 
       /* If the cycle contains writes that are concurrent
        * with the read just checked, then the anomaly rules out
@@ -250,12 +251,12 @@ object Checker {
       val rbEdges =
         c.edges.filter(e => linRbCmp(e.target.value, e.source.value))
       val remEdge = if (rbEdges.isEmpty) {
-        print(s"No vertex ordered by rb found in cycle: removing random edge. ")
+        logger.debug(s"No vertex ordered by rb found in cycle: removing random edge. ")
         c.edges.head
       } else
         rbEdges.head
 
-      println(s"Removing edge from cycle: $remEdge")
+      logger.debug(s"Removing edge from cycle: $remEdge")
       g -= remEdge
 
       (false, anomalyType)

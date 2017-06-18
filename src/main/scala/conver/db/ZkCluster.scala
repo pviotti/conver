@@ -1,8 +1,9 @@
 package conver.db
 
 import com.github.dockerjava.core.command.PullImageResultCallback
+import com.typesafe.scalalogging.LazyLogging
 
-object ZkCluster extends Cluster {
+object ZkCluster extends Cluster with LazyLogging {
 
   val netName = "zk"
   val zkDockerImage = "pviotti/zookeeper:latest"
@@ -39,7 +40,7 @@ object ZkCluster extends Cluster {
       val netInfo =
         docker.inspectNetworkCmd().withNetworkId(network.getId).exec()
       val ipAddr = netInfo.getContainers.get(container.getId).getIpv4Address
-      println("Server zk" + i + " started: " + ipAddr)
+      logger.info("Server zk" + i + " started: " + ipAddr)
 
       containers(i - 1) = container.getId
     }
@@ -65,19 +66,18 @@ object ZkCluster extends Cluster {
     docker.removeNetworkCmd(netName).exec()
   }
 
-  def printState(cIds: Array[String]) = {
-    for (cId <- cIds) {
-      val inspect = docker.inspectContainerCmd(cId).exec()
-      println(inspect)
-    }
-  }
-
-//    def main(arg: Array[String]): Unit = {
-//        var contIds = start(3)
-//        slowDownNetwork(contIds)
-//        //printState(contIds)
-//        Thread.sleep(2000)
-//        getConnectionString(contIds)
-//        stop(contIds)
-//    }
+  //  def printState(cIds: Array[String]) = {
+  //    for (cId <- cIds) {
+  //      val inspect = docker.inspectContainerCmd(cId).exec()
+  //      println(inspect)
+  //    }
+  //  }
+  //  def main(arg: Array[String]): Unit = {
+  //      var contIds = start(3)
+  //      slowDownNetwork(contIds)
+  //      //printState(contIds)
+  //      Thread.sleep(2000)
+  //      getConnectionString(contIds)
+  //      stop(contIds)
+  //  }
 }

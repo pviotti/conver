@@ -8,12 +8,13 @@ import java.util.HashSet
 import scalax.collection.mutable.ArraySet
 import java.util.LinkedList
 import scala.collection.mutable.LinkedHashSet
+import com.typesafe.scalalogging.LazyLogging
 
 /**
   * Dummy client that emulates a data store
   * implementing regular register semantics.
   */
-object DummyRegClient extends Client {
+object DummyRegClient extends Client with LazyLogging {
 
   private val hashMap = new ConcurrentHashMap[String, Int]
   private val seed = System.nanoTime
@@ -37,7 +38,7 @@ object DummyRegClient extends Client {
         val legalWrites = new LinkedList[Int](concVals)
         if (!legalWrites.contains(current))
           legalWrites.add(current)
-        print(s"(conc: $legalWrites) ")
+        logger.debug(s"(conc: $legalWrites) ")
         legalWrites.get(rnd.nextInt(legalWrites.size))
       }
     Thread.sleep(rnd.nextInt(maxLatency / 2))

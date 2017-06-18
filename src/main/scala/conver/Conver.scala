@@ -18,6 +18,7 @@ import conver.clients.AntidoteDBClient
 import conver.db.AntidoteDBCluster
 import conver.db.Cluster
 import org.rogach.scallop._
+import com.typesafe.scalalogging.LazyLogging
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
@@ -39,11 +40,12 @@ class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
     short = 'o',
     descr = "Average number of operations per client")
   val wan = opt[Boolean](descr = "Emulate wide area network")
+  val batch = opt[Int](short = 'b', descr = "Number of batch executions")
 
   verify()
 }
 
-object Conver extends App {
+object Conver extends App with LazyLogging {
 
   val conf = new Conf(args)
   val database = conf.database()
@@ -51,12 +53,16 @@ object Conver extends App {
   val numClients = conf.numClients()
   val meanNumOp = conf.meanNumOps()
   val wan = conf.wan()
+  val (isBatch, numBatch) = conf.batch.toOption match {
+    case Some(num) => (true, num)
+    case None => (false, 1)
+  }
   val sigmaNumOp = 1
   val maxInterOpInterval = if (wan) ZkCluster.meanDelay else 20
   val readRatio = 50 // %
-  println(
-    s"Started. Database: $database, servers: $numServers," +
-      s"clients: $numClients, avg op/client: $meanNumOp, emulate WAN: $wan")
+  logger.info(s"Started. Database: $database, servers: $numServers, " +
+    s"clients: $numClients, avg op/client: $meanNumOp, emulate WAN: $wan" +
+    (if (isBatch) s", batch: $numBatch" else ""))
 
   // tweak the parallelism to execute futures (http://stackoverflow.com/a/15285441)
   implicit val ec = new ExecutionContext {
@@ -99,24 +105,37 @@ object Conver extends App {
         client)
     }
 
-    // run execution
-    val futures = new ListBuffer[Future[ListBuffer[Operation]]]
-    val opLst = new ListBuffer[Operation]
-    val sTime = System.nanoTime
-    for (t <- testers) futures += Future(t.run(sTime))
-    for (f <- futures) opLst ++= Await.result(f, Duration.Inf)
-    val duration = System.nanoTime - sTime
-    //println("\nResults:"); opLst.foreach(x => println(x.toLongString))
+    for (i <- 1 to numBatch) {
 
-    // check and draw execution
-    try {
-      val (_, res) = Checker.checkExecution(opLst)
-      printResults(res)
-    } finally {
-      Drawer.drawExecution(numClients, opLst, duration)
+      val futures = new ListBuffer[Future[ListBuffer[Operation]]]
+      val opLst = new ListBuffer[Operation]
+      if (isBatch && i > 1) { // clean up test key after each batch execution  
+        testers.head.client.write(Client.KEY, Client.INIT_VALUE)
+        MonotonicOracle.reset
+      }
+
+      // run execution
+      val sTime = System.nanoTime
+      for (t <- testers) futures += Future(t.run(sTime))
+      for (f <- futures) opLst ++= Await.result(f, Duration.Inf)
+      val duration = System.nanoTime - sTime
+      //println("\nResults:"); opLst.foreach(x => println(x.toLongString))
+
+      // check and draw execution
+      try {
+        val (_, res) = Checker.checkExecution(opLst)
+        if (isBatch) logger.info("Results: " + getShortResultString(res))
+        else logger.info(getResultString(res))
+      } finally {
+        if (isBatch)
+          Drawer.drawExecution(numClients, opLst, duration, "exec" + i + ".png")
+        else
+          Drawer.drawExecution(numClients, opLst, duration)
+      }
     }
+
   } catch {
-    case e: Exception => e.printStackTrace
+    case e: Exception => logger.error("Exception: ", e)
   } finally {
 
     ec.shutdown()
@@ -132,18 +151,24 @@ object Conver extends App {
       }
   }
 
-  def printResults(res: Map[Symbol, Boolean]) = {
-    println(
-      "Linearizability............................" + printBool(res(Checker.LIN)) + "\n" +
-        "Regular...................................." + printBool(res(Checker.REG)) + "\n" +
-        "Sequential................................." + printBool(res(Checker.SEQ)) + "\n" +
-        "Causal....................................." + printBool(res(Checker.CAU)) + "\n" +
-        "Session causality (WFR)...................." + printBool(res(Checker.WFR)) + "\n" +
-        "Inter-Session Monotonicity (MR, MW)........" + printBool(res(Checker.MRW)) + "\n" +
-        "Intra-Session Monotonicity (RYW)..........." + printBool(res(Checker.RYW)))
+  def getShortResultString(res: Map[Symbol, Boolean]): String = {
+    (if (res(Checker.LIN)) "LIN " else "") + (if (res(Checker.REG)) "REG " else "") +
+      (if (res(Checker.SEQ)) "SEQ " else "") + (if (res(Checker.CAU)) "CAU " else "") +
+      (if (res(Checker.WFR)) "WFR " else "") + (if (res(Checker.MRW)) "MRW " else "") +
+      (if (res(Checker.RYW)) "RYW " else "")
   }
 
-  def printBool(b: Boolean): String = b match {
+  def getResultString(res: Map[Symbol, Boolean]): String = {
+    "Linearizability............................" + getBoolStr(res(Checker.LIN)) + "\n" +
+      "Regular...................................." + getBoolStr(res(Checker.REG)) + "\n" +
+      "Sequential................................." + getBoolStr(res(Checker.SEQ)) + "\n" +
+      "Causal....................................." + getBoolStr(res(Checker.CAU)) + "\n" +
+      "Session causality (WFR)...................." + getBoolStr(res(Checker.WFR)) + "\n" +
+      "Inter-Session Monotonicity (MR, MW)........" + getBoolStr(res(Checker.MRW)) + "\n" +
+      "Intra-Session Monotonicity (RYW)..........." + getBoolStr(res(Checker.RYW))
+  }
+
+  def getBoolStr(b: Boolean): String = b match {
     case true => Console.GREEN + "[OK]" + Console.RESET
     case false => Console.RED + "[KO]" + Console.RESET
   }

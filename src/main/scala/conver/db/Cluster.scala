@@ -7,8 +7,9 @@ import com.github.dockerjava.core.command.AttachContainerResultCallback
 import com.github.dockerjava.api.model.Frame
 import com.github.dockerjava.core.command.WaitContainerResultCallback
 import com.github.dockerjava.core.command.PullImageResultCallback
+import com.typesafe.scalalogging.LazyLogging
 
-abstract class Cluster {
+abstract class Cluster extends LazyLogging {
 
   val docker = DockerClientBuilder.getInstance().build()
   val iptablesDockerImage = "vimagick/iptables:latest"
@@ -95,7 +96,7 @@ abstract class Cluster {
     if (!images.exists { x =>
       x.getRepoTags.head.equals(imageId)
     }) {
-      println(s"Pulling docker image $imageId...")
+      logger.info(s"Pulling docker image $imageId...")
       docker
         .pullImageCmd(imageId)
         .exec(new PullImageResultCallback())
