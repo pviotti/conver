@@ -3,6 +3,7 @@ package conver
 import org.scalatest.FunSuite
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.HashSet
+import conver.clients.Client
 
 class CheckerTest extends FunSuite {
 
@@ -133,6 +134,18 @@ class CheckerTest extends FunSuite {
     assert(cons(Checker.MRW)); assert(!cons(Checker.WFR))
     assert(cons(Checker.RYW))
     Drawer.drawExecution(3, ops, 15, tstDir + "/07-wfr.png")
+  }
+
+  test("Initial write stale read") {
+    val ops = new ListBuffer[Operation]
+    ops += new Operation('a', READ, 3, 5, Client.INIT_VALUE)
+    ops += new Operation('b', WRITE, 1, 2, 2)
+    val (_, cons) = Checker.checkExecution(ops)
+    Drawer.drawExecution(2, ops, 16, tstDir + "/08-init.png")
+    assert(!cons(Checker.LIN)); assert(!cons(Checker.REG))
+    assert(cons(Checker.SEQ)); assert(cons(Checker.CAU))
+    assert(cons(Checker.MRW)); assert(cons(Checker.WFR))
+    assert(cons(Checker.RYW))
   }
 
 }

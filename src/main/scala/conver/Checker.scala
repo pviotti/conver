@@ -34,8 +34,8 @@ object Checker {
 
   def checkExecution(opLst: ListBuffer[Operation]): (ListBuffer[Operation], Map[Symbol, Boolean]) = {
 
+    opLst += new Operation('x', WRITE, 0, 0, Client.INIT_VALUE) // initial ghost write
     val g: Graph[Operation, LkDiEdge] = Graph()
-    // XXX include initial ghost write
     var cons = Map[Symbol, Boolean]()
 
     val (isLinearizable, readAnomLst) = checkLinearizability(g, opLst)
@@ -130,25 +130,23 @@ object Checker {
           if ((op1 is WRITE) && areLinConcurrent(op, op1))
             addNodeToGraph(g, op1)
 
-        if (op.arg != Client.INIT_VALUE) { // read of initial value has no matching write
-          // find matched write
-          val matchedW = g.nodes.find(x => visCmp(x.value, op)).get
+        // find matched write
+        val matchedW = g.nodes.find(x => visCmp(x.value, op)).get
 
-          // matched write inherits read's rb edges
-          for (e <- g.get(op).incoming)
-            if (e.source.value != matchedW.value) {
-              //println(s"Inheriting ${e.source.value} -> ${matchedW.value}")
-              g += LkDiEdge(e.source.value, matchedW.value)(AR)
-            }
+        // matched write inherits read's rb edges
+        for (e <- g.get(op).incoming)
+          if (e.source.value != matchedW.value) {
+            //println(s"Inheriting ${e.source.value} -> ${matchedW.value}")
+            g += LkDiEdge(e.source.value, matchedW.value)(AR)
+          }
 
-          /* Refine response time of write matching the read.
+        /* Refine response time of write matching the read.
            * This allows to add further returns-before edges
            * and then spot possible cycles due to anomalies
            * that otherwise would go unnoticed (e.g. new-old inversion). */
-          if (op.eTimeX < matchedW.value.eTimeX) {
-            //println(s"Refining ${matchedW.value} to $op")
-            matchedW.value.eTimeX = op.eTimeX
-          }
+        if (op.eTimeX < matchedW.value.eTimeX) {
+          //println(s"Refining ${matchedW.value} to $op")
+          matchedW.value.eTimeX = op.eTimeX
         }
 
         // remove read from graph
@@ -252,8 +250,7 @@ object Checker {
       val rbEdges =
         c.edges.filter(e => linRbCmp(e.target.value, e.source.value))
       val remEdge = if (rbEdges.isEmpty) {
-        print(
-          s"No vertex ordered by rb found in cycle, removing random edge. ")
+        print(s"No vertex ordered by rb found in cycle: removing random edge. ")
         c.edges.head
       } else
         rbEdges.head
