@@ -90,12 +90,12 @@ object Checker extends LazyLogging {
 
     cons += (CAU -> (cons(RYW) && cons(WFR) && cons(MRW)))
     cons += (SEQ -> (cons(CAU) && isCrossSessionTotalOrder))
-    
+
     var toStr, anStr = ""
     g.nodes.toSeq.sortBy(x => -x.outDegree).foreach(toStr += _ + " ")
     readAnomLst.foreach(anStr += _ + " ")
-    logger.debug("Total order (tentative): " + toStr) 
-    logger.debug("Anomalies: " +  (if (readAnomLst.isEmpty) "[none]" else anStr))
+    logger.debug("Total order (tentative): " + toStr)
+    logger.debug("Anomalies: " + (if (readAnomLst.isEmpty) "[none]" else anStr))
 
     //if (cons(LIN)) assert(cons(REG))
     //if (cons(REG)) assert(cons(SEQ))
@@ -128,27 +128,28 @@ object Checker extends LazyLogging {
 
         // find matched write
         try {
-        val matchedW = g.nodes.find(x => visCmp(x.value, op)).get
-        
+          val matchedW = g.nodes.find(x => visCmp(x.value, op)).get
 
-        // matched write inherits read's rb edges
-        for (e <- g.get(op).incoming)
-          if (e.source.value != matchedW.value) {
-            //logger.debug(s"Inheriting ${e.source.value} -> ${matchedW.value}")
-            g += LkDiEdge(e.source.value, matchedW.value)(AR)
-          }
+          // matched write inherits read's rb edges
+          for (e <- g.get(op).incoming)
+            if (e.source.value != matchedW.value) {
+              //logger.debug(s"Inheriting ${e.source.value} -> ${matchedW.value}")
+              g += LkDiEdge(e.source.value, matchedW.value)(AR)
+            }
 
-        /* Refine response time of write matching the read.
+          /* Refine response time of write matching the read.
            * This allows to add further returns-before edges
            * and then spot possible cycles due to anomalies
            * that otherwise would go unnoticed (e.g. new-old inversion). */
-        if (op.eTimeX < matchedW.value.eTimeX) {
-          //logger.debug(s"Refining ${matchedW.value} to $op")
-          matchedW.value.eTimeX = op.eTimeX
-        }
+          if (op.eTimeX < matchedW.value.eTimeX) {
+            //logger.debug(s"Refining ${matchedW.value} to $op")
+            matchedW.value.eTimeX = op.eTimeX
+          }
 
         } catch {
-          case e: Exception => logger.error("EXC: " + op.toString)
+          /* can happen in batch executions: if we don't restart the servers, the first reads
+             of an execution can read a value last written by the preceding execution */
+          case e: Exception => logger.error("EXCEPTION: read w/o matching write" + op.toString)
         }
         // remove read from graph
         g -= op

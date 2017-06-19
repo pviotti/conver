@@ -131,7 +131,7 @@ object AntidoteDBCluster extends Cluster with LazyLogging {
     for (i <- 1 to num)
       writer.write(scriptSyncInterDcMgr.replaceAll("ID", i.toString))
 
-    writer.write("\tio:format(\"Antidote cluster setup completed!\").")
+    writer.write("\tio:format(\"Antidote cluster setup completed.\").")
     writer.close()
 
     (tmpDir, tmpScriptFile, tmpEscriptFile)

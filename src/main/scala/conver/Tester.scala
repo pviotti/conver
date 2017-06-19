@@ -34,36 +34,42 @@ class Tester(val id: Char,
 
       if (rnd.nextInt(100) <= readRatio) {
         var anomaly = false
+        var excMsg: String = null
         var arg = Client.INIT_VALUE;
         val sTime = System.nanoTime - t0
         try {
           arg = client.read(Client.KEY)
         } catch {
-          case e: Exception => anomaly = true
+          case e: Exception =>
+            anomaly = true
+            excMsg = e.getMessage
         } finally {
           val eTime = System.nanoTime - t0
           val op = new Operation(id, READ, sTime, eTime, arg)
           if (anomaly) {
             op.anomalies += Checker.ANOMALY_FAIL
-            logger.debug("Read operation failed: " + op.toLongString)
+            logger.debug("Read failed: " + op.toLongString + " - " + excMsg)
           }
           opLst += op
           //print(s"$op ")
         }
       } else {
         var anomaly = false
+        var excMsg: String = null
         val arg = MonotonicOracle.getNextMonotonicInt
         val sTime = System.nanoTime - t0
         try {
           client.write(Client.KEY, arg)
         } catch {
-          case e: Exception => anomaly = true
+          case e: Exception =>
+            anomaly = true
+            excMsg = e.getMessage
         } finally {
           val eTime = System.nanoTime - t0
           val op = new Operation(id, WRITE, sTime, eTime, arg)
           if (anomaly) {
             op.anomalies += Checker.ANOMALY_FAIL
-            logger.debug("Write operation failed: " + op.toLongString)
+            logger.debug("Write failed: " + op.toLongString + " - " + excMsg)
           }
           opLst += op
           //print(s"$op ")

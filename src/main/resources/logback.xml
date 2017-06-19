@@ -9,20 +9,32 @@
 		</encoder>
 	</appender>
 
-	<appender name="FILE" class="ch.qos.logback.core.FileAppender">
-		<file>conver.log</file>
+	<appender name="FILE-DEBUG" class="ch.qos.logback.core.FileAppender">
+		<file>conver-debug.log</file>
 		<append>false</append>
 		<encoder>
 			<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
 			</pattern>
 		</encoder>
 	</appender>
-	
-	  <logger name="org.apache" level="ERROR" />
-	  <logger name="com.github.dockerjava" level="ERROR" />
+
+	<appender name="FILE-INFO" class="ch.qos.logback.core.FileAppender">
+		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+			<level>INFO</level>
+		</filter>
+		<file>conver-info.log</file>
+		<append>false</append>
+		<encoder>
+			<pattern>%msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<logger name="org.apache" level="ERROR" />
+	<logger name="com.github.dockerjava" level="ERROR" />
 
 	<root level="debug">
 		<appender-ref ref="STDOUT" />
-		<appender-ref ref="FILE" />
+		<appender-ref ref="FILE-INFO" />
+		<appender-ref ref="FILE-DEBUG" />
 	</root>
 </configuration>

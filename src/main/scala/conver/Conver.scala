@@ -19,6 +19,7 @@ import conver.db.AntidoteDBCluster
 import conver.db.Cluster
 import org.rogach.scallop._
 import com.typesafe.scalalogging.LazyLogging
+import scala.collection.mutable.ArrayBuffer
 
 class Conf(arguments: Seq[String]) extends ScallopConf(arguments) {
 
@@ -73,6 +74,11 @@ object Conver extends App with LazyLogging {
     def shutdown() = threadPool.shutdown();
   }
 
+  val bufNumOp = ArrayBuffer[Int]()
+  val bufNumFailW = ArrayBuffer[Int]()
+  val bufNumFailR = ArrayBuffer[Int]()
+  val bufNumAnomalies = ArrayBuffer[Int]()
+
   var containerIds = null: Array[String]
   try {
     // start cluster
@@ -86,33 +92,29 @@ object Conver extends App with LazyLogging {
       case _ => ;
     }
 
-    // setup clients
-    val testers = for (id <- 'a' to ('a' + numClients - 1).toChar) yield {
-      var client: Client = database match {
-        case "zk" =>
-          new ZkClient().init(ZkCluster.getConnectionString(containerIds))
-        case "antidote" =>
-          new AntidoteDBClient()
-            .init(AntidoteDBCluster.getConnectionString(numServers))
-        case "reg" => DummyRegClient
-        case "lin" => DummyLinClient
-      }
-      new Tester(id,
-        meanNumOp,
-        sigmaNumOp,
-        maxInterOpInterval,
-        readRatio,
-        client)
-    }
-
     for (i <- 1 to numBatch) {
+
+      if (isBatch)
+        logger.info(s"-----------------------------------\nBatch run $i")
+
+      // setup clients
+      val testers = for (id <- 'a' to ('a' + numClients - 1).toChar) yield {
+        var client: Client = database match {
+          case "zk" =>
+            new ZkClient().init(ZkCluster.getConnectionString(containerIds))
+          case "antidote" =>
+            new AntidoteDBClient()
+              .init(AntidoteDBCluster.getConnectionString(numServers))
+          case "reg" => DummyRegClient
+          case "lin" => DummyLinClient
+        }
+        new Tester(id, meanNumOp, sigmaNumOp,
+          maxInterOpInterval, readRatio, client)
+      }
 
       val futures = new ListBuffer[Future[ListBuffer[Operation]]]
       val opLst = new ListBuffer[Operation]
-      if (isBatch && i > 1) { // clean up test key after each batch execution  
-        testers.head.client.write(Client.KEY, Client.INIT_VALUE)
-        MonotonicOracle.reset
-      }
+      MonotonicOracle.reset
 
       // run execution
       val sTime = System.nanoTime
@@ -124,14 +126,38 @@ object Conver extends App with LazyLogging {
       // check and draw execution
       try {
         val (_, res) = Checker.checkExecution(opLst)
-        if (isBatch) logger.info("Results: " + getShortResultString(res))
-        else logger.info(getResultString(res))
+
+        bufNumOp += opLst.size
+        bufNumFailW += opLst.count(x => x.anomalies.contains(Checker.ANOMALY_FAIL) && (x is WRITE))
+        bufNumFailR += opLst.count(x => x.anomalies.contains(Checker.ANOMALY_FAIL) && (x is READ))
+        bufNumAnomalies += opLst.count(x => x.anomalies.contains(Checker.ANOMALY_STALEREAD) || x.anomalies.contains(Checker.ANOMALY_REGULAR))
+        logger.info("Operations: " + bufNumOp(i - 1))
+        logger.info("Failed writes: " + bufNumFailW(i - 1) + " (" + (100 * bufNumFailW(i - 1) / bufNumOp(i - 1)) + "%)")
+        logger.info("Failed reads: " + bufNumFailR(i - 1) + " (" + (100 * bufNumFailR(i - 1) / bufNumOp(i - 1)) + "%)")
+        logger.info("Anomalies: " + bufNumAnomalies(i - 1) + " (" + (100 * bufNumAnomalies(i - 1) / bufNumOp(i - 1)) + "%)")
+
+        if (isBatch) 
+          logger.info("Consistency: " + getShortResultString(res))
+        else 
+          logger.info(getResultString(res))
       } finally {
         if (isBatch)
           Drawer.drawExecution(numClients, opLst, duration, "exec" + i + ".png")
         else
           Drawer.drawExecution(numClients, opLst, duration)
       }
+    } // end batch execution
+
+    if (isBatch) {
+      logger.info(s"===================================\nEnd of batch")
+      val avgOp = bufNumOp.sum.asInstanceOf[Float] / bufNumOp.size
+      val avgFailW = bufNumFailW.sum.asInstanceOf[Float] / bufNumFailW.size
+      val avgFailR = bufNumFailR.sum.asInstanceOf[Float] / bufNumFailR.size
+      val avgAnomalies = bufNumAnomalies.sum / bufNumAnomalies.size
+      logger.info("Avg operations: " + avgOp)
+      logger.info("Avg failed writes: " + avgFailW + " (" + (100 * avgFailW / avgOp) + "%)")
+      logger.info("Avg failed reads: " + avgFailR + " (" + (100 * avgFailR / avgOp) + "%)")
+      logger.info("Avg anomalies: " + avgAnomalies + " (" + (100 * avgAnomalies / avgOp) + "%)")
     }
 
   } catch {
