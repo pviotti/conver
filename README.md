@@ -26,17 +26,29 @@ to build Conver issue:
 
     $ sbt compile
 
-This command spawns a local cluster of Docker containers running ZooKeeper and
-performs the consistency verification test by using 10 concurrent clients
-that invoke 10 operations on average:
+The following command spawns a local cluster of 3 Docker containers running ZooKeeper, and
+performs the consistency verification test using 10 concurrent clients
+that invoke 10 operations on average. 
+Moreover, by setting the `-w` flag, Conver emulates wide area network settings by delaying, 
+dropping and corrupting packets.
 
-    $ sbt "run -c zk -n 10 -o 10"
+    $ sbt "run -d zk -s 3 -c 10 -o 10 -w"
 
 The resulting textual and graphical outputs look like the following.
 
 
 ![Conver execution](https://i.imgur.com/NSuyhVp.png)
- 
+
+Here are the options currently supported:
+
+      -b, --batch  <arg>          Number of batch executions
+      -d, --database  <arg>       Database (lin, reg, zk, antidote)
+      -o, --mean-num-ops  <arg>   Average number of operations per client
+      -c, --num-clients  <arg>    Number of clients
+      -s, --num-servers  <arg>    Number of servers
+      -w, --wan                   Emulate wide area network
+          --help                  Show help message
+
 
 ## Features and related work
 
