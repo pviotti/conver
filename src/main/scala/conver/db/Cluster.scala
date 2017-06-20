@@ -8,6 +8,8 @@ import com.github.dockerjava.api.model.Frame
 import com.github.dockerjava.core.command.WaitContainerResultCallback
 import com.github.dockerjava.core.command.PullImageResultCallback
 import com.typesafe.scalalogging.LazyLogging
+import com.github.dockerjava.api.exception.NotFoundException
+import com.github.dockerjava.api.exception.BadRequestException
 
 abstract class Cluster extends LazyLogging {
 
@@ -24,8 +26,13 @@ abstract class Cluster extends LazyLogging {
   def start(num: Int): Array[String]
 
   def stop(cIds: Array[String]) = {
-    for (cId <- cIds)
-      docker.removeContainerCmd(cId).withForce(true).exec()
+    try {
+      for (cId <- cIds)
+        docker.removeContainerCmd(cId).withForce(true).exec()
+    } catch {
+      case e: NotFoundException => ; // container already removed
+      case e: BadRequestException => ; // removal already in progress 
+    }
   }
 
   def slowDownNetwork(cIds: Array[String]) = {

@@ -81,6 +81,8 @@ object Conver extends App with LazyLogging {
 
   var containerIds = null: Array[String]
   try {
+    sys.addShutdownHook({ terminateCluster(database, containerIds) })
+    
     // start cluster
     database match {
       case "zk" =>
@@ -136,9 +138,9 @@ object Conver extends App with LazyLogging {
         logger.info("Failed reads: " + bufNumFailR(i - 1) + " (" + (100 * bufNumFailR(i - 1) / bufNumOp(i - 1)) + "%)")
         logger.info("Anomalies: " + bufNumAnomalies(i - 1) + " (" + (100 * bufNumAnomalies(i - 1) / bufNumOp(i - 1)) + "%)")
 
-        if (isBatch) 
+        if (isBatch)
           logger.info("Consistency: " + getShortResultString(res))
-        else 
+        else
           logger.info(getResultString(res))
       } finally {
         if (isBatch)
@@ -163,10 +165,11 @@ object Conver extends App with LazyLogging {
   } catch {
     case e: Exception => logger.error("Exception: ", e)
   } finally {
-
     ec.shutdown()
+    terminateCluster(database, containerIds)
+  }
 
-    // tear down cluster
+  def terminateCluster(database: String, containerIds: Array[String]) = {
     if (containerIds != null)
       database match {
         case "zk" =>
