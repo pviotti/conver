@@ -63,7 +63,7 @@ At the moment Conver supports:
 
 
 Similar projects: [Jepsen][jepsen], [Hermitage][hermitage], [WatCA][watca].  
-Linearizability checkers: [Horn's][horn], [Lowe's][lowe].  
+Linearizability checkers: [Horn's][horn], [Lowe's][lowe], [Line-up][lineup].  
 
 
 ## Authors and license
@@ -83,3 +83,4 @@ License: Apache 2.0.
  [sbt]: http://www.scala-sbt.org/
  [exist]: http://sigops.org/sosp/sosp15/current/2015-Monterey/printable/240-lu.pdf
  [watca]: https://github.com/wgolab/WatCA
+ [lineup]: http://dl.acm.org/citation.cfm?id=1806634
