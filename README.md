@@ -1,4 +1,4 @@
-# Conver [![Build Status](https://travis-ci.org/pviotti/conver-scala.svg?branch=master)](https://travis-ci.org/pviotti/conver-scala)
+# Conver [![Build Status](https://travis-ci.org/pviotti/conver.svg?branch=master)](https://travis-ci.org/pviotti/conver)
 
 Conver is a testing tool that verifies implementations of the most common 
 non-transactional consistency models.  
