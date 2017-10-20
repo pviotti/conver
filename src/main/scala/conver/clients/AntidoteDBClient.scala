@@ -21,7 +21,7 @@ class AntidoteDBClient extends Client with LazyLogging {
       val port = Random.shuffle(connStr.split(",").toList).head
       adb = new AntidoteClient(new Host("127.0.0.1", port.toInt))
       logger.info("Client connected to 127.0.0.1:" + port)
-      val bucket: Bucket[String] = Bucket.create("tstBucket");
+      val bucket: Bucket[String] = Bucket.create(tstBucket);
       regRef = bucket.register(KEY, ValueCoder.utf8String)
       regRef.set(adb.noTransaction(), Client.INIT_VALUE.toString())
     } catch {
