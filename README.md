@@ -15,7 +15,7 @@ and can emulate WAN latencies through `netem` (without requiring admin rights).
 
 The approach implemented in Conver has been described in [this PaPoC 2016 paper][papoc].  
 
-NOTE: This is a work-in-progress Scala rewrite of the [original](https://github.com/pviotti/conver) 
+NOTE: This is a work-in-progress Scala rewrite of the [original](https://github.com/pviotti/conver-old) 
 Erlang implementation. It features a new linearizability checker, and improved consistency checks.
 
 
